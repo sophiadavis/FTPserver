@@ -12,27 +12,28 @@
 int main(int argc, char *argv[]){
     
     int listening_socket, new_socket;
-    socklen_t addrlen;
     
     int bufsize = 1024;
     char *buffer = malloc(bufsize);
     
-    struct sockaddr_in address_in; 
-    address_in.sin_family = AF_INET;
-    address_in.sin_port = htons(15000);
-    address_in.sin_addr.s_addr = INADDR_ANY;
+    // Socket address information
+        // sockaddr_in contains IPv4 information
+        struct sockaddr_in address_in; 
+        address_in.sin_family = AF_INET;
+        address_in.sin_port = htons(15000);
+        address_in.sin_addr.s_addr = INADDR_ANY;
     
-    struct addrinfo address;
-    memset(&address, 0, sizeof(address));
-    address.ai_family = AF_INET;
-    address.ai_socktype = SOCK_STREAM;
-    address.ai_protocol = 0;
-    address.ai_addr = (struct sockaddr *) &address_in;
+        // addrinfo contains info about the socket
+        struct addrinfo address;
+        memset(&address, 0, sizeof(address));
+        address.ai_socktype = SOCK_STREAM;
+        address.ai_protocol = 0;
+        address.ai_addr = (struct sockaddr *) &address_in;
     
+    // For storing results from getaddrinfo -- Why are there multiple???
     struct addrinfo *results;
-    
-    // Socket address information 
-    int status = getaddrinfo(INADDR_ANY, "15000", &address, &results);
+     
+    int status = getaddrinfo(NULL, "15000", &address, &results);
     if (status != 0) {
         fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
         exit(1);
@@ -51,7 +52,7 @@ int main(int argc, char *argv[]){
         exit(1);
     }  
     
-// 2. Bind socket to address (host and port)
+// 2. Bind socket to address
     if (bind(listening_socket, results->ai_addr, results->ai_addrlen) == 0) { // socket id, *sockaddr struct w address info, length (in bytes) of address                                                         
         printf("Binding socket...\n");
     }
@@ -70,8 +71,7 @@ int main(int argc, char *argv[]){
 // 4. Accept clients
         // Now we have a new socket specifically for sending/receiving data w this client
         // Info about incoming connection goes into &address
-        addrlen = sizeof((struct sockaddr *) &address_in);
-        if ((new_socket = accept(listening_socket, (struct sockaddr *) &results->ai_addr, &addrlen)) < 0) {
+        if ((new_socket = accept(listening_socket, (struct sockaddr *) &results->ai_addr, &results->ai_addrlen)) < 0) {
             perror("server: accept");
             printf("I'm not accepting!\n");
             exit(1);
@@ -87,7 +87,7 @@ int main(int argc, char *argv[]){
         
         recv(new_socket, buffer, bufsize, 0);
         printf("%s\n", buffer);
-        write(new_socket, "hello world!\n", 12);
+        write(new_socket, "hello world!\n", 13);
         close(new_socket);
     }
     close(listening_socket);
