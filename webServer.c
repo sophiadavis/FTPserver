@@ -16,7 +16,7 @@ int main(int argc, char *argv[]){
     int bufsize = 1024;
     char *buffer = malloc(bufsize);
     
-    // 1. Create socket
+// 1. Create socket
     listening_socket = socket(AF_INET, SOCK_STREAM, 0); // IPv4, stream, 0 = choose correct protocol for stream vs datagram 
     if (listening_socket > 0) { // success!
         printf("Socket created.\n");
@@ -38,21 +38,22 @@ int main(int argc, char *argv[]){
         exit(1);
     }  
     
-    // 2. Bind socket to address (host and port)
+// 2. Bind socket to address (host and port)
     if (bind(listening_socket, (struct sockaddr *) &address, sizeof(address)) == 0) { // socket id, *sockaddr struct w address info, length (in bytes) of address
                                                                 
         printf("Binding socket\n");
     }
     
-    // 3. Listen for connections
+// 3. Listen for connections
     while (1) {
         if (listen(listening_socket, 10) < 0) { // socketfd and backlog (# requests kept waiting)
             perror("server: listen");
             exit(1);
         }
         
-        // 4. Accept clients
-        // now we have a new socket specifically for sending/receiving data w this client
+// 4. Accept clients
+        // Now we have a new socket specifically for sending/receiving data w this client
+        // Info about incoming connection goes into &address
         if ((new_socket = accept(listening_socket, (struct sockaddr *) &address, &addrlen)) < 0) {
             perror("server: accept");
             exit(1);
@@ -62,8 +63,7 @@ int main(int argc, char *argv[]){
             printf("The client is connected.\n");
         }
         
-        // 5. Send and receive data
-        
+// 5. Send and receive data
         // Clear buffer
         memset(buffer, 0, sizeof(buffer));
         
