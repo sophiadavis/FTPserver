@@ -52,20 +52,20 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "client: failed to connect\n");
         return 2;
     }
+    
+    printf("\nConnected to server.\n");
+    printf("Sending data to server...\n");
+    
+    char *msg = "hi server!\n";
+    int len, bytes_sent;
+    len = strlen(msg);
+    bytes_sent = send(sock, msg, len, 0);
 
-//     int sock = socket(results->ai_family, results->ai_socktype, results->ai_protocol);
-//         
-//     int connection = connect(sock, results->ai_addr, results->ai_addrlen);
-//     
-//     printf("socket %i\n", sock);
-//     printf("did it work? %i\n", connection);
-//     
-//     int bufsize = 1024;
-//     char *buffer = malloc(bufsize);
-//     memset(buffer, 0, bufsize); // Clear buffer
-//         
-//     recv(sock, buffer, bufsize, 0);
-//     printf("The client's buffer: %s\n", buffer);
+    int bufsize = 1024;
+    char *buffer = malloc(bufsize);
+    recv(sock, buffer, bufsize-1, 0);
+
+    printf("\nReceived: \n\t%s\n", buffer);
     
     freeaddrinfo(results);
     return 0;

@@ -82,15 +82,21 @@ int main(int argc, char *argv[]){
         }
         
         if (new_socket > 0) {
-            printf("A client has connected.\n");
+            printf("\nA client has connected.\n");
         }
         
 // 5. Send and receive data
         memset(buffer, 0, bufsize); // Clear buffer
         
+        printf("Received:\n");
         recv(new_socket, buffer, bufsize, 0);
-        printf("%s\n", buffer);
-        write(new_socket, "hello world!\n", 13);
+        printf("\t%s\n", buffer);
+        
+        char *msg = "hello client.\n";
+        int len, bytes_sent;
+        len = strlen(msg);
+        bytes_sent = send(new_socket, msg, len, 0);
+        
         close(new_socket);
     }
     close(listening_socket);
