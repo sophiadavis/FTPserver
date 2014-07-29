@@ -17,11 +17,10 @@ int main(int argc, char *argv[]) {
     address.ai_family = AF_INET;
     address.ai_socktype = SOCK_STREAM;
     address.ai_protocol = 0;
-    address.ai_flags = AI_PASSIVE;
+    //address.ai_flags = AI_PASSIVE;
     
     struct addrinfo *results; // pointer to results
 
-    // converts host name to ip address
     int status = getaddrinfo("localhost", "8000", &address, &results);
     if (status != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
@@ -31,19 +30,17 @@ int main(int argc, char *argv[]) {
     
 	
     // loop through all the results and connect to the first we can
-    int sockfd = socket(results->ai_family, results->ai_socktype, results->ai_protocol);
+    int sock = socket(results->ai_family, results->ai_socktype, results->ai_protocol);
 
     struct addrinfo *p;
     for(p = results; p != NULL; p = p->ai_next) {
-        printf("-\n");
-        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+        printf("-socket: %d\n", sock);
+        if ((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
             perror("client: socket");
             continue;
         }
-        printf("socket: %d\n", sockfd);
-
-        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
+        if (connect(sock, p->ai_addr, p->ai_addrlen) == -1) {
+            close(sock);
             perror("client: connect");
             continue;
         }

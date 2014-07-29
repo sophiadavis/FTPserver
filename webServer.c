@@ -21,7 +21,7 @@ int main(int argc, char *argv[]){
         struct sockaddr_in address_in; 
         address_in.sin_family = AF_INET;
         address_in.sin_port = htons(8000);
-        address_in.sin_addr.s_addr = htonl(INADDR_ANY);
+        address_in.sin_addr.s_addr = INADDR_ANY;
             
         // addrinfo contains info about the socket
         struct addrinfo address;
