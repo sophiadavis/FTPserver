@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
     struct addrinfo *results; // pointer to results
 
     // converts host name to ip address
-    int status = getaddrinfo("localhost", "15000", &address, &results);
+    int status = getaddrinfo("localhost", "8000", &address, &results);
     if (status != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
         return 1;
@@ -37,19 +37,20 @@ int main(int argc, char *argv[]) {
 //         printf(" family: %i\n", p->ai_family);
 //     }
 
-    struct sockaddr_in address_in; 
-    address_in.sin_family = AF_INET;
-    address_in.sin_port = htons(8000);
-    address_in.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    //struct sockaddr_in address_in; 
+    //address_in.sin_family = AF_INET;
+    //address_in.sin_port = htons(8000);
+    //address_in.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     
-    char str[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &(address_in.sin_addr), str, INET_ADDRSTRLEN);
+    //char str[INET_ADDRSTRLEN];
+    //inet_ntop(AF_INET, &(address_in.sin_addr), str, INET_ADDRSTRLEN);
     
-    printf("%s\n", str);
+    //printf("%s\n", str);
 	
     // loop through all the results and connect to the first we can
-    int sockfd = socket(address_in.sin_family, SOCK_STREAM, 0);
-    if (connect(sockfd, (struct sockaddr *) &address_in, (socklen_t) sizeof(address_in)) == -1) {
+    int sockfd = socket(results->ai_family, results->ai_socktype, results->ai_protocol);
+    //if (connect(sockfd, (struct sockaddr *) &address_in, (socklen_t) sizeof(address_in)) == -1) {
+    if (connect(sockfd, results->ai_addr, results->ai_addrlen) == -1) {
             close(sockfd);
             perror("client: connect");
             printf("%d\n", errno);
