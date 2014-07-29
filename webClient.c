@@ -17,10 +17,6 @@ int main(int argc, char *argv[]) {
     
     struct addrinfo *res; // pointer to results
 
-    // int getaddrinfo(const char *node,     // e.g. "www.example.com" or IP
-    //            const char *service,  // e.g. "http" or port number
-    //            const struct addrinfo *hints,
-    //            struct addrinfo **res // where to put results);
     // converts host name to ip address
     int status = getaddrinfo("localhost", "15000", &hints, &res);
     printf("status: %i\n", status);
