@@ -41,8 +41,7 @@ int main(int argc, char *argv[]){
     }
     
 // 1. Create socket
-    //listening_socket = socket(address_in.sin_family, SOCK_STREAM, 0); // IPv4, stream, 0 = choose correct protocol for stream vs datagram 
-    listening_socket = socket(results->ai_family, results->ai_socktype, results->ai_protocol);
+    listening_socket = socket(results->ai_family, results->ai_socktype, results->ai_protocol); // IPv4, stream, 0 = choose correct protocol for stream vs datagram 
     if (listening_socket > 0) { // success!
         printf("Socket created.\n");
     }

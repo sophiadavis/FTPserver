@@ -29,48 +29,27 @@ int main(int argc, char *argv[]) {
     }
     printf("status: %i\n", status);
     
-    struct addrinfo *p;
-//     for(p = results; p != NULL; p = p->ai_next) {
-//         printf("-\n");
-//         printf(" canonname: %s\n", p->ai_canonname);
-//         printf(" socktype: %i\n", p->ai_socktype);
-//         printf(" family: %i\n", p->ai_family);
-//     }
-
-    //struct sockaddr_in address_in; 
-    //address_in.sin_family = AF_INET;
-    //address_in.sin_port = htons(8000);
-    //address_in.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    
-    //char str[INET_ADDRSTRLEN];
-    //inet_ntop(AF_INET, &(address_in.sin_addr), str, INET_ADDRSTRLEN);
-    
-    //printf("%s\n", str);
 	
     // loop through all the results and connect to the first we can
     int sockfd = socket(results->ai_family, results->ai_socktype, results->ai_protocol);
-    //if (connect(sockfd, (struct sockaddr *) &address_in, (socklen_t) sizeof(address_in)) == -1) {
-    if (connect(sockfd, results->ai_addr, results->ai_addrlen) == -1) {
+
+    struct addrinfo *p;
+    for(p = results; p != NULL; p = p->ai_next) {
+        printf("-\n");
+        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+            perror("client: socket");
+            continue;
+        }
+        printf("socket: %d\n", sockfd);
+
+        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
             close(sockfd);
             perror("client: connect");
-            printf("%d\n", errno);
+            continue;
         }
-//     for(p = results; p != NULL; p = p->ai_next) {
-//         printf("-\n");
-//         if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-//             perror("client: socket");
-//             continue;
-//         }
-//         printf("socket: %d\n", sockfd);
-// 
-//         if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-//             close(sockfd);
-//             perror("client: connect");
-//             continue;
-//         }
-// 
-//         break;
-//     }
+
+        break;
+    }
 
     if (p == NULL) {
         fprintf(stderr, "client: failed to connect\n");
