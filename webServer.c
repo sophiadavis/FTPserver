@@ -20,9 +20,9 @@ int main(int argc, char *argv[]){
         // sockaddr_in contains IPv4 information
         struct sockaddr_in address_in; 
         address_in.sin_family = AF_INET;
-        address_in.sin_port = htons(15000);
-        address_in.sin_addr.s_addr = INADDR_ANY;
-    
+        address_in.sin_port = htons(8000);
+        address_in.sin_addr.s_addr = htonl(INADDR_ANY);
+            
         // addrinfo contains info about the socket
         struct addrinfo address;
         memset(&address, 0, sizeof(address));
@@ -30,17 +30,17 @@ int main(int argc, char *argv[]){
         address.ai_protocol = 0;
         address.ai_addr = (struct sockaddr *) &address_in;
     
-    // For storing results from getaddrinfo -- Why are there multiple???
+    // For storing results from getaddrinfo
     struct addrinfo *results;
      
-    int status = getaddrinfo(NULL, "15000", &address, &results);
+    int status = getaddrinfo(NULL, "8000", &address, &results);
     if (status != 0) {
         fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
         exit(1);
     }
     
 // 1. Create socket
-    listening_socket = socket(results->ai_family, results->ai_socktype, results->ai_protocol); // IPv4, stream, 0 = choose correct protocol for stream vs datagram 
+    listening_socket = socket(address_in.sin_family, SOCK_STREAM, 0); // IPv4, stream, 0 = choose correct protocol for stream vs datagram 
     if (listening_socket > 0) { // success!
         printf("Socket created.\n");
     }
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]){
     }  
     
 // 2. Bind socket to address
-    if (bind(listening_socket, results->ai_addr, results->ai_addrlen) == 0) { // socket id, *sockaddr struct w address info, length (in bytes) of address                                                         
+    if (bind(listening_socket, (struct sockaddr *) &address_in, sizeof(address_in)) == 0) { // socket id, *sockaddr struct w address info, length (in bytes) of address                                                         
         printf("Binding socket...\n");
     }
     else {
