@@ -69,21 +69,23 @@ int main(int argc, char *argv[]){
         }
         
 // 4. Accept clients
-        // Now we have a new socket specifically for sending/receiving data w this client
-        // Info about incoming connection goes into &address
-        if ((new_socket = accept(listening_socket, (struct sockaddr *) &results->ai_addr, &results->ai_addrlen)) < 0) {
+        
+        // Make a new socket specifically for sending/receiving data w this client
+        // Info about incoming connection goes into sockaddr_storage struct 
+        struct sockaddr_storage client;
+        socklen_t addr_size = sizeof(client);
+        if ((new_socket = accept(listening_socket, (struct sockaddr *) &client, &addr_size)) < 0) {
             perror("server: accept");
             printf("I'm not accepting!\n");
             exit(1);
         }
         
         if (new_socket > 0) {
-            printf("The client is connected.\n");
+            printf("A client has connected.\n");
         }
         
 // 5. Send and receive data
-        // Clear buffer
-        memset(buffer, 0, bufsize);
+        memset(buffer, 0, bufsize); // Clear buffer
         
         recv(new_socket, buffer, bufsize, 0);
         printf("%s\n", buffer);
