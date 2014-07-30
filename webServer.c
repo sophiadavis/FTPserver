@@ -129,15 +129,13 @@ void *process_connection(void *sock) {
             bytes_sent = send(new_socket, buffer, len, 0);
             if (bytes_sent < 0) {
                 close(new_socket);
-                printf("here1");
-                perror("client: connect");
+                printf("Server closed connection.\n");
                 exit(0);
             }
         }
         else {
             close(new_socket);
-            printf("here2");
-            perror("client: connect");
+            printf("Client closed connection.\n");
             exit(0);
             break;
         }

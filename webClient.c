@@ -64,24 +64,24 @@ int main(int argc, char *argv[]) {
         int scanned = scanf("%[^\t\n]s", command);
         getchar(); // eat newline
 
-        if (scanned > 0) { //--scanf to accept multi-word string
+        if (strlen(command) > 0) { //--scanf to accept multi-word string
             len = strlen(command);
             printf("\tSending to server: '%s' (%d bytes)\n", command, len);
         
             bytes_sent = send(sock, command, len, 0);
             if (bytes_sent < 0) {
                 close(sock);
-                perror("client: connect");
+                printf("Server closed connection.\n");
+                perror("server: connect");
                 exit(0);
             }
-        
             bytes_received = recv(sock, buffer, bufsize-1, 0);
 
             printf("\tServer replied: '%s' (%d bytes)\n", buffer, bytes_received);
         }
         else {
             close(sock);
-            perror("client: connect");
+            printf("Client closed connection.\n");
             exit(0);
         }
     }
