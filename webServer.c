@@ -13,14 +13,11 @@ int main(int argc, char *argv[]){
     
     int listening_socket, new_socket;
     
-    int bufsize = 1024;
-    char *buffer = malloc(bufsize);
-    
     // Socket address information
         // sockaddr_in contains IPv4 information
         struct sockaddr_in address_in; 
         address_in.sin_family = AF_INET;
-        address_in.sin_port = htons(8000);
+        address_in.sin_port = htons(5000);
         address_in.sin_addr.s_addr = INADDR_ANY;
             
         // addrinfo contains info about the socket
@@ -31,10 +28,10 @@ int main(int argc, char *argv[]){
         address.ai_addr = (struct sockaddr *) &address_in;
         address.ai_flags = AI_PASSIVE;
     
-    // For storing results from getaddrinfo
-    struct addrinfo *results;
+        // For storing results from getaddrinfo
+        struct addrinfo *results;
      
-    int status = getaddrinfo(NULL, "8000", &address, &results);
+    int status = getaddrinfo(NULL, "5000", &address, &results);
     if (status != 0) {
         fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
         exit(1);
@@ -42,7 +39,7 @@ int main(int argc, char *argv[]){
     
 // 1. Create socket
     listening_socket = socket(results->ai_family, results->ai_socktype, results->ai_protocol); // IPv4, stream, 0 = choose correct protocol for stream vs datagram 
-    if (listening_socket > 0) { // success!
+    if (listening_socket > 0) {
         printf("Socket created.\n");
     }
     
@@ -59,6 +56,8 @@ int main(int argc, char *argv[]){
     }
     else {
         printf("I'm not binding!\n");
+        perror("server: bind");
+        exit(1);
     }
     
 // 3. Listen for connections
@@ -86,20 +85,38 @@ int main(int argc, char *argv[]){
         }
         
 // 5. Send and receive data
-        memset(buffer, 0, bufsize); // Clear buffer
-        
-        printf("Received:\n");
-        recv(new_socket, buffer, bufsize, 0);
-        printf("\t%s\n", buffer);
-        
-        char *msg = "hello client.\n";
+        int bufsize = 1024;
+        char *buffer = malloc(bufsize);
+        int bytes_received;
         int len, bytes_sent;
-        len = strlen(msg);
-        bytes_sent = send(new_socket, msg, len, 0);
         
-        close(new_socket);
+        while (1) {
+//             printf("--Server starting while loop.--\n");
+            memset(buffer, 0, bufsize); // Clear buffer
+            
+            bytes_received = recv(new_socket, buffer, bufsize, 0);
+
+            if (bytes_received > 0) {
+                printf("Server received: %s (%i bytes)\n", buffer, bytes_received);
+                len = strlen(buffer);
+                bytes_sent = send(new_socket, buffer, len, 0);
+                if (bytes_sent < 0) {
+                    close(new_socket);
+                    perror("client: connect");
+                    exit(0);
+                }
+            }
+            else {
+                close(new_socket);
+                perror("client: connect");
+                exit(0);
+                break;
+            }
+        }
+        free(buffer);
     }
+    freeaddrinfo(results);
+    close(new_socket);
     close(listening_socket);
-    free(buffer);
     return 0;
 }
