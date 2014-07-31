@@ -13,6 +13,42 @@
 void* process_connection(void *sock);
 int process_request(char *buffer, int new_socket, int bytes_received);
 
+// Commands
+const char *USER = "USER";
+        // USER <SP> <username> <CRLF>
+        // Login as user username. 
+        // If the username is "anonymous", reply with 230. Otherwise, reply with 530.
+const char *QUIT = "QUIT"; 
+        // QUIT <CRLF>
+        // Quit
+        // Return 221. The server now knows that nobody is logged in.
+const char *PWD = "PWD"; 
+        //PWD <CRLF>
+        // Print working directory.
+        // Reply with 257 (and include the working directory as the string following the reply number).
+const char *CWD = "CWD"; 
+        // CWD <SP> <pathname> <CRLF>
+        // Change working directory.
+        // You may assume that pathname will be a pathname that is either ".." or "." or a relative pathname that does not include ".." or ".". 
+        // If the requested action can be successfully completed, reply with 250. Otherwise, reply with 550.
+const char *PORT = "PORT";
+        // PORT <SP> <host-port> <CRLF>
+        //Specifies the port to be used for the data connection.
+        // READ MORE Create a new socket (for the data connection) given the host address and the port number. Reply with 200 to indicate success. Reply with 500 to indicate failure.
+const char *NLST = "NLST";
+        // NLST [<SP> <pathname>] <CRLF>
+        // List files in the current directory or files specified by the optional arguments.
+        // First, indicate that a data communication transfer is starting with reply 125. Next, transfer the file names over the data communication channel that was previously opened by the client having issued a PORT command. (You may assume that the client will have issued the PORT command.) Once the action is successfully completed, reply with 226. In case of error, reply with 450. In both cases close the data communication channel upon completion.
+
+const char *RETR = "RETR";
+        // RETR <SP> <pathname> <CRLF>
+        // Retrieve a file specified by path pathname.
+        // You should assume that the client has called PORT to initialize the data communication channel. If no file has been specified for retrieval, reply with 450. If a file has been specified, first send reply 125. Next, if the specified file exists, is a file, and is readable, send the file byte by byte over using the data communication. If this action is completed successfully, reply with 250. Otherwise, reply with 550. In both cases, close the data communication channel upon completion.
+
+const char *TYPE = "TYPE";
+        // TYPE <Transfer mode> <CRLF>
+        // simply reply with 200
+
 int main(int argc, char *argv[]){
     
     int listening_socket, new_socket;
@@ -118,8 +154,6 @@ void *process_connection(void *sock) {
     
     while (1) {
 //             printf("--Server starting while loop.--\n");
-            
-        memset(buffer, 0, bufsize); // Clear buffer
         bytes_received = recv(new_socket, buffer, bufsize, 0);
         if (bytes_received > 0) {
             bytes_sent  = process_request(buffer, new_socket, bytes_received);
@@ -142,9 +176,65 @@ void *process_connection(void *sock) {
 }
 
 int process_request(char *buffer, int new_socket, int bytes_received) {
-    int len, bytes_sent;
+    int data_size;
+    char *data;
+    int len, bytes_sent, num_args;
+    
+    // all commands contain less than two words (otherwise, error)
+    num_args = 2;
+    char parsed[num_args][20];// = memset(parsed[2][20], 0, sizeof(parsed[2][20])); // TODO -- is 20 adequate?
+    
     printf("Server received: %s (%i bytes)\n", buffer, bytes_received);
     len = strlen(buffer);
-    bytes_sent = send(new_socket, buffer, len, 0); 
+    size_t i = 0;
+    size_t j = 0;
+    size_t arg_len = 0;
+    
+    while (j < num_args) {
+        while (i < len) {
+            printf("%c\n", buffer[i]);
+            if (buffer[i] != ' ') {
+                parsed[j][arg_len] = buffer[i];
+                arg_len++;
+            }
+            else {
+                printf("in else\n");
+                j++;
+                arg_len = 0; // Reset length of current arg
+            }
+            i++;
+            printf("i: %zd, j: %zd\n", i, j);
+            int z = 0;
+            for(z = 0; z < num_args; z++) {
+                printf("command %zd is %s\n", z, parsed[z]);
+            }
+        }
+        printf("BREAKING -- i: %zd, j: %zd\n", i, j);
+        break;
+    }
+    
+    
+    printf("len is %d. strcmp is %d.\n", len, strcmp(parsed[0], USER));
+//     printf("%s", USER);
+//     printf("yo\n");
+    
+    int z;
+    if (strcmp(parsed[0], USER) == 0) {
+        data = "you want to sign in";
+    }
+    else {
+        printf("Not Equal.");
+        data = "blah";
+    }
+    
+//     printf("sending\n");
+    bytes_sent = send(new_socket, data, strlen(data), 0);
+    
+    // Clear out buffers, etc.
+    for(z = 0; z < num_args; z++) {
+        memset(parsed[z], 0, strlen(parsed[z]));
+    }
+    //memset(data, 0, strlen(data));
+    //memset(buffer, 0, strlen(buffer));
     return bytes_sent;     
 }
