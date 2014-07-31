@@ -220,12 +220,12 @@ int process_request(char *buffer, int new_socket, int bytes_received) {
         printf("command %zd is %s\n", z, parsed[z]);
     }
     
-    int status;
+    int sign_in_status;
     //If the username is "anonymous", reply with 230. Otherwise, reply with 530.
     if (strcmp(parsed[0], USER) == 0) {
-        status = sign_in_thread(parsed[1]);
-        printf("%d\n", status);
-        if (status == 1) {
+        sign_in_status = sign_in_thread(parsed[1]);
+        printf("%d\n", sign_in_status);
+        if (sign_in_status == 1) {
             data = "230-User signed in.";
         }
         else {
@@ -258,3 +258,4 @@ int sign_in_thread(char *username) {
         return -1;
     }
 }
+
