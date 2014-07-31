@@ -1,4 +1,3 @@
-// http://blog.manula.org/2011/05/writing-simple-web-server-in-c.html
 #include<netinet/in.h>    
 #include<stdio.h>    
 #include<stdlib.h>
@@ -12,6 +11,7 @@
 #include <pthread.h>
 
 void* process_connection(void *sock);
+int process_request(char *buffer, int new_socket, int bytes_received);
 
 int main(int argc, char *argv[]){
     
@@ -114,24 +114,22 @@ void *process_connection(void *sock) {
 // 5. Send and receive data
     int bufsize = 1024;
     char *buffer = malloc(bufsize);
-    int bytes_received;
-    int len, bytes_sent;
+    int bytes_received, bytes_sent;
     
     while (1) {
 //             printf("--Server starting while loop.--\n");
             
         memset(buffer, 0, bufsize); // Clear buffer
         bytes_received = recv(new_socket, buffer, bufsize, 0);
-        
         if (bytes_received > 0) {
-            printf("Server received: %s (%i bytes)\n", buffer, bytes_received);
-            len = strlen(buffer);
-            bytes_sent = send(new_socket, buffer, len, 0);
-            if (bytes_sent < 0) {
-                close(new_socket);
-                printf("Server closed connection.\n");
-                exit(0);
-            }
+            bytes_sent  = process_request(buffer, new_socket, bytes_received);
+        }
+        
+        // TODO -- error checking?
+        else if (bytes_sent < 0) {
+            close(new_socket);
+            printf("?????Server closed connection.\n");
+            exit(0);
         }
         else {
             close(new_socket);
@@ -141,4 +139,12 @@ void *process_connection(void *sock) {
         }
     }
     free(buffer);
+}
+
+int process_request(char *buffer, int new_socket, int bytes_received) {
+    int len, bytes_sent;
+    printf("Server received: %s (%i bytes)\n", buffer, bytes_received);
+    len = strlen(buffer);
+    bytes_sent = send(new_socket, buffer, len, 0); 
+    return bytes_sent;     
 }
