@@ -12,6 +12,7 @@
 
 void* process_connection(void *sock);
 int process_request(char *buffer, int new_socket, int bytes_received);
+int sign_in_thread(char *username);
 
 // Commands
 const char *USER = "USER";
@@ -204,26 +205,35 @@ int process_request(char *buffer, int new_socket, int bytes_received) {
             }
             i++;
             printf("i: %zd, j: %zd\n", i, j);
-            int z = 0;
-            for(z = 0; z < num_args; z++) {
-                printf("command %zd is %s\n", z, parsed[z]);
-            }
         }
-        printf("BREAKING -- i: %zd, j: %zd\n", i, j);
+//         printf("BREAKING -- i: %zd, j: %zd\n", i, j);
         break;
     }
     
     
-    printf("len is %d. strcmp is %d.\n", len, strcmp(parsed[0], USER));
+//     printf("len is %d. strcmp is %d.\n", len, strcmp(parsed[0], USER));
 //     printf("%s", USER);
 //     printf("yo\n");
     
-    int z;
+    int z = 0;
+    for(z = 0; z < num_args; z++) {
+        printf("command %zd is %s\n", z, parsed[z]);
+    }
+    
+    int status;
+    //If the username is "anonymous", reply with 230. Otherwise, reply with 530.
     if (strcmp(parsed[0], USER) == 0) {
-        data = "you want to sign in";
+        status = sign_in_thread(parsed[1]);
+        printf("%d\n", status);
+        if (status == 1) {
+            data = "230-User signed in.";
+        }
+        else {
+            data = "530-Sign in failure.";
+        }
     }
     else {
-        printf("Not Equal.");
+        printf("Need to check signed in!");
         data = "blah";
     }
     
@@ -237,4 +247,14 @@ int process_request(char *buffer, int new_socket, int bytes_received) {
     //memset(data, 0, strlen(data));
     //memset(buffer, 0, strlen(buffer));
     return bytes_sent;     
+}
+
+int sign_in_thread(char *username) {
+    printf("INSIDE SIGN IN: %d\n", strcmp(username, "anonymous"));
+    if (strcmp(username, "anonymous") == 0) {
+        return 1;
+    }
+    else {
+        return -1;
+    }
 }
