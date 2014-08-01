@@ -215,7 +215,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     num_args = 2;
     char parsed[num_args][20];// = memset(parsed[2][20], 0, sizeof(parsed[2][20])); // TODO -- is 20 adequate?
     
-    printf("Server received: %s (%i bytes)\n", buffer, bytes_received);
+    printf("\nServer received: %s (%i bytes)\n", buffer, bytes_received);
     len = strlen(buffer);
     size_t i = 0;
     size_t j = 0;
@@ -243,7 +243,6 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         
     if (strcmp(parsed[0], USER) == 0) {
         *sign_in_status = sign_in_thread(parsed[1]);
-        printf("%d\n", *sign_in_status);
         if (*sign_in_status == 1) {
             data = "230-User signed in.";
         }
@@ -295,7 +294,6 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
 /*    END PROCESS REQUEST    */
 
 int sign_in_thread(char *username) {
-    printf("INSIDE SIGN IN: %d\n", strcmp(username, "anonymous"));
     if (strcmp(username, "anonymous") == 0) {
         return 1;
     }
