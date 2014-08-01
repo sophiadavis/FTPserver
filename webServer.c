@@ -132,16 +132,17 @@ int main(int argc, char *argv[]){
             pthread_create(&tid, NULL, &process_connection, &new_socket);
             printf("\nA client has connected, new thread created.\n");
             
-            // thread has completed work
-            int *total_bytes_sent;
-            int join_status = pthread_join(tid, (void **) &total_bytes_sent);
-            
-            if (join_status == 0) {
-                printf("Thread closed. %d total bytes sent.\n", *total_bytes_sent);
-            }
-            else {
-                printf("Error joining thread\n");
-            }
+//             /// WHERE SHOULD THIS GO???
+//             // thread has completed work
+//             int *total_bytes_sent;
+//             int join_status = pthread_join(tid, (void **) &total_bytes_sent);
+//             
+//             if (join_status == 0) {
+//                 printf("Thread closed. %d total bytes sent.\n", *total_bytes_sent);
+//             }
+//             else {
+//                 printf("Error joining thread\n");
+//             }
         }
     }
     freeaddrinfo(results);
@@ -168,6 +169,7 @@ void *process_connection(void *sock) {
     int bytes_received, bytes_sent;
     
     while (1) {
+        memset(buffer, 0, bufsize);
         bytes_received = recv(new_socket, buffer, bufsize, 0);
         if (bytes_received > 0) {
             bytes_sent  = process_request(buffer, new_socket, bytes_received);
@@ -191,8 +193,9 @@ void *process_connection(void *sock) {
         }
     }
     free(buffer);
-    pthread_exit((void *) total_bytes_sent);
+    printf("Thread closed. %d total bytes sent.\n", *total_bytes_sent);
     free(total_bytes_sent);
+    pthread_exit((void *) total_bytes_sent);
 }
 /*    END PROCESS CONNECTION    */
 
