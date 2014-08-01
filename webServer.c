@@ -282,7 +282,14 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             free(cwd);
         }
         else if (strcmp(parsed[0], CWD) == 0) {
-            data = "you want to cwd";
+            int chdir_status = chdir(parsed[1]);
+            if (chdir_status == 0) {
+                data = "250-CWD successful";
+            }
+            else {
+                perror("CWD");
+                data = "550-CWD error";
+            }
         }
         else if (strcmp(parsed[0], PORT) == 0) {
             data = "you want the port number";
@@ -327,17 +334,3 @@ int sign_in_thread(char *username) {
         return -1;
     }
 }
-
-// char *pwd() {
-//     size_t cwd_size = 1024*sizeof(char);
-//     char *cwd = malloc(cwd_size);
-//     if (getcwd(cwd, cwd_size) != NULL) {
-//         printf("257-Current working directory is: %s\n", cwd);
-// //         sprintf(data, "257-Current working directory is: %s\n", cwd);
-//         return cwd;
-//     }
-//     else {
-//         perror("getcwd() error");
-//         exit(1);
-//     }
-// }
