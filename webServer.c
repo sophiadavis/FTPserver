@@ -229,12 +229,10 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
                 arg_len++;
             }
             else {
-                printf("in else\n");
                 j++;
                 arg_len = 0; // Reset length of current arg
             }
             i++;
-            printf("i: %zd, j: %zd\n", i, j);
         }
         break;
     }
