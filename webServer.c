@@ -247,23 +247,19 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     if (strcmp(parsed[0], USER) == 0) {
         *sign_in_status = sign_in_thread(parsed[1]);
         if (*sign_in_status == 1) {
-//             strcpy(data, "230-User signed in.");
             data = "230-User signed in.";
         }
         else {
-//             strcpy(data, "530-Sign in failure.");
             data = "530-Sign in failure.";
         }
     }
     else if (strcmp(parsed[0], QUIT) == 0) {
         num_threads--;
-        printf("quitting.\n");
+        printf("Closing connection.\n");
         return 0;
     }
     else if (*sign_in_status == 1) {
         if (strcmp(parsed[0], PWD) == 0) {
-            printf("you want to pwd\n");
-            printf("data is %s\n", data);
             
             size_t cwd_size = 1024*sizeof(char);
             char *cwd = malloc(cwd_size);
@@ -271,8 +267,6 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             blatant_memory_leak = 1;
             
             int pwd_status = pwd(cwd, data, cwd_size);
-            
-            printf("data is %s\n", data);
             free(cwd);
         }
         else if (strcmp(parsed[0], CWD) == 0) {
