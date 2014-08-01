@@ -50,6 +50,8 @@ const char *TYPE = "TYPE";
         // TYPE <Transfer mode> <CRLF>
         // simply reply with 200
 
+int num_users = 0;
+
 int main(int argc, char *argv[]){
     
     int listening_socket, new_socket;
@@ -126,11 +128,21 @@ int main(int argc, char *argv[]){
     
         if (new_socket > 0) {
             pthread_t tid;
+            num_users++;
             pthread_create(&tid, NULL, &process_connection, &new_socket);
             printf("\nA client has connected, new thread created.\n");
+            
+            // thread has completed work
+            int *total_bytes_sent;
+            int join_status = pthread_join(tid, (void **) &total_bytes_sent);
+            
+            if (join_status == 0) {
+                printf("Thread closed. %d total bytes sent.\n", *total_bytes_sent);
+            }
+            else {
+                printf("Error joining thread\n");
+            }
         }
-
-        
     }
     freeaddrinfo(results);
     close(new_socket);
@@ -150,34 +162,41 @@ void *process_connection(void *sock) {
         
 // 5. Send and receive data
     int bufsize = 1024;
+    int *total_bytes_sent = malloc(sizeof(int));
+    *total_bytes_sent = 0;
     char *buffer = malloc(bufsize);
     int bytes_received, bytes_sent;
     
     while (1) {
-//             printf("--Server starting while loop.--\n");
         bytes_received = recv(new_socket, buffer, bufsize, 0);
         if (bytes_received > 0) {
             bytes_sent  = process_request(buffer, new_socket, bytes_received);
         }
         
         // TODO -- error checking?
-        else if (bytes_sent < 0) {
+        if (bytes_sent < 0) {
             close(new_socket);
             printf("?????Server closed connection.\n");
             exit(0);
         }
-        else {
+        
+        // Client has terminated.
+        else if (bytes_sent == 0) {
             close(new_socket);
             printf("Client closed connection.\n");
-            exit(0);
             break;
+        }
+        else {
+            *total_bytes_sent += bytes_sent;
         }
     }
     free(buffer);
+    pthread_exit((void *) total_bytes_sent);
+    free(total_bytes_sent);
 }
+/*    END PROCESS CONNECTION    */
 
 int process_request(char *buffer, int new_socket, int bytes_received) {
-    int data_size;
     char *data;
     int len, bytes_sent, num_args;
     
@@ -206,22 +225,16 @@ int process_request(char *buffer, int new_socket, int bytes_received) {
             i++;
             printf("i: %zd, j: %zd\n", i, j);
         }
-//         printf("BREAKING -- i: %zd, j: %zd\n", i, j);
         break;
     }
-    
-    
-//     printf("len is %d. strcmp is %d.\n", len, strcmp(parsed[0], USER));
-//     printf("%s", USER);
-//     printf("yo\n");
     
     int z = 0;
     for(z = 0; z < num_args; z++) {
         printf("command %zd is %s\n", z, parsed[z]);
     }
-    
+        
     int sign_in_status;
-    //If the username is "anonymous", reply with 230. Otherwise, reply with 530.
+
     if (strcmp(parsed[0], USER) == 0) {
         sign_in_status = sign_in_thread(parsed[1]);
         printf("%d\n", sign_in_status);
@@ -232,22 +245,26 @@ int process_request(char *buffer, int new_socket, int bytes_received) {
             data = "530-Sign in failure.";
         }
     }
+    else if (strcmp(parsed[0], QUIT) == 0) {
+        num_users--;
+        printf("quitting.\n");
+        return 0;
+    }
     else {
         printf("Need to check signed in!");
         data = "blah";
     }
     
-//     printf("sending\n");
     bytes_sent = send(new_socket, data, strlen(data), 0);
     
-    // Clear out buffers, etc.
+    // Clear out parsed arguments
     for(z = 0; z < num_args; z++) {
         memset(parsed[z], 0, strlen(parsed[z]));
     }
-    //memset(data, 0, strlen(data));
-    //memset(buffer, 0, strlen(buffer));
+
     return bytes_sent;     
 }
+/*    END PROCESS REQUEST    */
 
 int sign_in_thread(char *username) {
     printf("INSIDE SIGN IN: %d\n", strcmp(username, "anonymous"));
@@ -259,3 +276,6 @@ int sign_in_thread(char *username) {
     }
 }
 
+// int thread_sign_in_status() {
+// 
+// }

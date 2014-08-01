@@ -49,6 +49,8 @@ int main(int argc, char *argv[]) {
         return 2;
     }
     
+    freeaddrinfo(results);
+    
     printf("\nConnected to server.\n");
     
     int bufsize = 1024;
@@ -73,19 +75,31 @@ int main(int argc, char *argv[]) {
                 close(sock);
                 printf("Server closed connection.\n");
                 perror("server: connect");
+                free(buffer);
                 exit(0);
             }
             bytes_received = recv(sock, buffer, bufsize-1, 0);
-
+            if (bytes_received == 0) {
+                close(sock);
+                printf("Connection closed.\n");
+                free(buffer);
+                exit(0);
+            }
+            if (bytes_received < 0) {
+                close(sock);
+                printf("Server closed connection.\n");
+                free(buffer);
+                exit(0);
+            }
             printf("\tServer replied: '%s' (%d bytes)\n", buffer, bytes_received);
         }
         else {
             close(sock);
-            printf("Client closed connection.\n");
+            printf("Connection closed.\n");
+            free(buffer);
             exit(0);
         }
     }
     free(buffer);
-    freeaddrinfo(results);
     return 0;
 }
