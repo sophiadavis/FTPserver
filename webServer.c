@@ -13,6 +13,7 @@
 void* process_connection(void *sock);
 int process_request(char *buffer, int new_socket, int bytes_received, int *signed_in);
 int sign_in_thread(char *username);
+char *pwd();
 
 // Commands
 const char *USER = "USER";
@@ -208,7 +209,7 @@ void *process_connection(void *sock) {
 /*    END PROCESS CONNECTION    */
 
 int process_request(char *buffer, int new_socket, int bytes_received, int *sign_in_status) {
-    char *data;
+    char *data;// = malloc(sizeof(char) *1024);
     int len, bytes_sent, num_args;
     
     // all commands contain less than two words (otherwise, error)
@@ -244,9 +245,11 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     if (strcmp(parsed[0], USER) == 0) {
         *sign_in_status = sign_in_thread(parsed[1]);
         if (*sign_in_status == 1) {
+//             strcpy(data, "230-User signed in.");
             data = "230-User signed in.";
         }
         else {
+//             strcpy(data, "530-Sign in failure.");
             data = "530-Sign in failure.";
         }
     }
@@ -257,7 +260,23 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     }
     else if (*sign_in_status == 1) {
         if (strcmp(parsed[0], PWD) == 0) {
-            data = "you want to pwd";
+            printf("you want to pwd\n");
+            printf("data is %s\n", data);
+            
+            
+            size_t cwd_size = 1024*sizeof(char);
+            char *cwd = malloc(cwd_size);
+            data = malloc(cwd_size);
+            if (getcwd(cwd, cwd_size) != NULL) {
+                printf("257-Current working directory is: %s\n", cwd);
+                snprintf(data, cwd_size, "257-Current working directory is: %s\n", cwd);
+            }
+            else {
+                perror("getcwd() error");
+                exit(1);
+            }
+            printf("data is %s\n", data);
+            free(cwd);
         }
         else if (strcmp(parsed[0], CWD) == 0) {
             data = "you want to cwd";
@@ -288,7 +307,8 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     for(z = 0; z < num_args; z++) {
         memset(parsed[z], 0, strlen(parsed[z]));
     }
-
+    
+//     free(data);
     return bytes_sent;     
 }
 /*    END PROCESS REQUEST    */
@@ -302,6 +322,16 @@ int sign_in_thread(char *username) {
     }
 }
 
-// int thread_sign_in_status() {
-// 
+// char *pwd() {
+//     size_t cwd_size = 1024*sizeof(char);
+//     char *cwd = malloc(cwd_size);
+//     if (getcwd(cwd, cwd_size) != NULL) {
+//         printf("257-Current working directory is: %s\n", cwd);
+// //         sprintf(data, "257-Current working directory is: %s\n", cwd);
+//         return cwd;
+//     }
+//     else {
+//         perror("getcwd() error");
+//         exit(1);
+//     }
 // }
