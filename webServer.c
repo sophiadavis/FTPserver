@@ -7,6 +7,7 @@
 #include<sys/types.h>    
 #include<unistd.h>  
 #include <netdb.h>
+#include <dirent.h>
 
 #include <pthread.h>
 
@@ -273,6 +274,8 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             ///////////////////////////////////////////
             // TODO keep client from going above root????
             ///////////////////////////////////////////
+            // ALSO, THREADS SHARE WORKING DIRECTORY, DAMMIT.
+            ///////////////////////////////////////////
             int chdir_status = chdir(parsed[1]);
             if (chdir_status == 0) {
                 data = "250-CWD successful";
@@ -286,7 +289,17 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
 //             data = "you want the port number";
 //         }
         else if (strcmp(parsed[0], NLST) == 0) {
-            // LS.
+            // http://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
+
+            DIR *d;
+            struct dirent *dir;
+            d = opendir(".");
+            if (d) {
+              while ((dir = readdir(d)) != NULL) {
+                printf("%s\n", dir->d_name);
+              }
+              closedir(d);
+            }
             data = "you want the nlst??";
         }
         else if (strcmp(parsed[0], RETR) == 0) {
@@ -310,9 +323,9 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         memset(parsed[z], 0, strlen(parsed[z]));
     }
     
-//     free(data);
     if (blatant_memory_leak == 1) {
         free(data);
+        blatant_memory_leak = 0;
     }
     return bytes_sent;     
 }
