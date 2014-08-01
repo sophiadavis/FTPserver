@@ -276,6 +276,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             ///////////////////////////////////////////
             // ALSO, THREADS SHARE WORKING DIRECTORY, DAMMIT.
             ///////////////////////////////////////////
+            
             int chdir_status = chdir(parsed[1]);
             if (chdir_status == 0) {
                 data = "250-CWD successful";
@@ -290,17 +291,22 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
 //         }
         else if (strcmp(parsed[0], NLST) == 0) {
             // http://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
-
+            size_t data_size = 1024*sizeof(char);
+            data = malloc(data_size);
+            blatant_memory_leak = 1;
+            int bytes_written = 0;
             DIR *d;
             struct dirent *dir;
             d = opendir(".");
             if (d) {
               while ((dir = readdir(d)) != NULL) {
-                printf("%s\n", dir->d_name);
+                bytes_written = bytes_written + snprintf(data + bytes_written, data_size, "\n%s", dir->d_name);
               }
               closedir(d);
             }
-            data = "you want the nlst??";
+            else {
+                data = "550-NLST error";
+            }
         }
         else if (strcmp(parsed[0], RETR) == 0) {
             data = "retr?? wtf";
@@ -324,7 +330,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     }
     
     if (blatant_memory_leak == 1) {
-        free(data);
+        //free(data);
         blatant_memory_leak = 0;
     }
     return bytes_sent;     
