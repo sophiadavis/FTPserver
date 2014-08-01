@@ -223,7 +223,6 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     
     while (j < num_args) {
         while (i < len) {
-            printf("%c\n", buffer[i]);
             if (buffer[i] != ' ') {
                 parsed[j][arg_len] = buffer[i];
                 arg_len++;
