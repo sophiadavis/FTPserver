@@ -13,7 +13,7 @@
 void* process_connection(void *sock);
 int process_request(char *buffer, int new_socket, int bytes_received, int *signed_in);
 int sign_in_thread(char *username);
-char *pwd();
+int pwd(char *cwd, char *data, size_t cwd_size);
 
 // Commands
 const char *USER = "USER";
@@ -265,19 +265,13 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             printf("you want to pwd\n");
             printf("data is %s\n", data);
             
-            
             size_t cwd_size = 1024*sizeof(char);
             char *cwd = malloc(cwd_size);
             data = malloc(cwd_size); // BLATANT MEMORY LEAK -- see hack fix later
             blatant_memory_leak = 1;
-            if (getcwd(cwd, cwd_size) != NULL) {
-                printf("257-Current working directory is: %s\n", cwd);
-                snprintf(data, cwd_size, "257-Current working directory is: %s\n", cwd);
-            }
-            else {
-                perror("getcwd() error");
-                exit(1);
-            }
+            
+            int pwd_status = pwd(cwd, data, cwd_size);
+            
             printf("data is %s\n", data);
             free(cwd);
         }
@@ -336,5 +330,18 @@ int sign_in_thread(char *username) {
     }
     else {
         return -1;
+    }
+}
+
+int pwd(char *cwd, char *data, size_t cwd_size) {
+    if (getcwd(cwd, cwd_size) != NULL) {
+        printf("257-Current working directory is: %s\n", cwd);
+        snprintf(data, cwd_size, "257-Current working directory is: %s\n", cwd);
+        return 1;
+    }
+    else {
+        perror("getcwd() error");
+        return -1;
+        exit(1);
     }
 }
