@@ -11,7 +11,7 @@
 #include <pthread.h>
 
 void* process_connection(void *sock);
-int process_request(char *buffer, int new_socket, int bytes_received);
+int process_request(char *buffer, int new_socket, int bytes_received, int *signed_in);
 int sign_in_thread(char *username);
 
 // Commands
@@ -49,10 +49,17 @@ const char *RETR = "RETR";
 const char *TYPE = "TYPE";
         // TYPE <Transfer mode> <CRLF>
         // simply reply with 200
-
+        
 int num_users = 0;
+const char *ROOT = "/var/folders/r6/mzb0s9jd1639123lkcsv4mf00000gn/T/server";
 
 int main(int argc, char *argv[]){
+
+    int cwd_success = chdir(ROOT);
+    if (cwd_success < 0) {
+        perror("server: CSD");
+        exit(1);
+    }
     
     int listening_socket, new_socket;
     
@@ -154,6 +161,7 @@ int main(int argc, char *argv[]){
 void *process_connection(void *sock) {
     int *new_socket_ptr;
     int new_socket;
+    int signed_in = 0;
     
     // cast void* as int*
     new_socket_ptr = (int *) sock;
@@ -172,7 +180,7 @@ void *process_connection(void *sock) {
         memset(buffer, 0, bufsize);
         bytes_received = recv(new_socket, buffer, bufsize, 0);
         if (bytes_received > 0) {
-            bytes_sent  = process_request(buffer, new_socket, bytes_received);
+            bytes_sent  = process_request(buffer, new_socket, bytes_received, &signed_in);
         }
         
         // TODO -- error checking?
@@ -199,7 +207,7 @@ void *process_connection(void *sock) {
 }
 /*    END PROCESS CONNECTION    */
 
-int process_request(char *buffer, int new_socket, int bytes_received) {
+int process_request(char *buffer, int new_socket, int bytes_received, int *sign_in_status) {
     char *data;
     int len, bytes_sent, num_args;
     
@@ -236,12 +244,10 @@ int process_request(char *buffer, int new_socket, int bytes_received) {
         printf("command %zd is %s\n", z, parsed[z]);
     }
         
-    int sign_in_status;
-
     if (strcmp(parsed[0], USER) == 0) {
-        sign_in_status = sign_in_thread(parsed[1]);
-        printf("%d\n", sign_in_status);
-        if (sign_in_status == 1) {
+        *sign_in_status = sign_in_thread(parsed[1]);
+        printf("%d\n", *sign_in_status);
+        if (*sign_in_status == 1) {
             data = "230-User signed in.";
         }
         else {
@@ -253,9 +259,31 @@ int process_request(char *buffer, int new_socket, int bytes_received) {
         printf("quitting.\n");
         return 0;
     }
+    else if (*sign_in_status == 1) {
+        if (strcmp(parsed[0], PWD) == 0) {
+            data = "you want to pwd";
+        }
+        else if (strcmp(parsed[0], CWD) == 0) {
+            data = "you want to cwd";
+        }
+        else if (strcmp(parsed[0], PORT) == 0) {
+            data = "you want the port number";
+        }
+        else if (strcmp(parsed[0], NLST) == 0) {
+            data = "you want the nlst??";
+        }
+        else if (strcmp(parsed[0], RETR) == 0) {
+            data = "retr?? wtf";
+        }
+        else if (strcmp(parsed[0], TYPE) == 0) {
+            data = "you want the type";
+        }
+        else {
+            data = "500-Syntax error, command unrecognized.";
+        }
+    }
     else {
-        printf("Need to check signed in!");
-        data = "blah";
+        data = "530-User not logged in.";
     }
     
     bytes_sent = send(new_socket, data, strlen(data), 0);
