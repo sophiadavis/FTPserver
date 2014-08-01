@@ -51,7 +51,7 @@ const char *TYPE = "TYPE";
         // TYPE <Transfer mode> <CRLF>
         // simply reply with 200
         
-int num_users = 0;
+int num_threads = 0;
 const char *ROOT = "/var/folders/r6/mzb0s9jd1639123lkcsv4mf00000gn/T/server";
 
 int main(int argc, char *argv[]){
@@ -136,9 +136,9 @@ int main(int argc, char *argv[]){
     
         if (new_socket > 0) {
             pthread_t tid;
-            num_users++;
+            num_threads++;
             pthread_create(&tid, NULL, &process_connection, &new_socket);
-            printf("\nA client has connected, new thread created.\n");
+            printf("\nA client has connected, new thread created. Total threads: %d.\n", num_threads);
             
 //             /// WHERE SHOULD THIS GO???
 //             // thread has completed work
@@ -202,7 +202,7 @@ void *process_connection(void *sock) {
         }
     }
     free(buffer);
-    printf("Thread closed. %d total bytes sent.\n", *total_bytes_sent);
+    printf("Thread closed. %d total bytes sent. Threads still active: %d.\n", *total_bytes_sent, num_threads);
     free(total_bytes_sent);
     pthread_exit((void *) total_bytes_sent);
 }
@@ -254,7 +254,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         }
     }
     else if (strcmp(parsed[0], QUIT) == 0) {
-        num_users--;
+        num_threads--;
         printf("quitting.\n");
         return 0;
     }
