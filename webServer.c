@@ -212,6 +212,8 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     char *data;// = malloc(sizeof(char) *1024);
     int len, bytes_sent, num_args;
     
+    int blatant_memory_leak = 0;
+    
     // all commands contain less than two words (otherwise, error)
     num_args = 2;
     char parsed[num_args][20];// = memset(parsed[2][20], 0, sizeof(parsed[2][20])); // TODO -- is 20 adequate?
@@ -266,7 +268,8 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             
             size_t cwd_size = 1024*sizeof(char);
             char *cwd = malloc(cwd_size);
-            data = malloc(cwd_size);
+            data = malloc(cwd_size); // BLATANT MEMORY LEAK!!!!!!!!!!!!!!!!!!!
+            blatant_memory_leak = 1;
             if (getcwd(cwd, cwd_size) != NULL) {
                 printf("257-Current working directory is: %s\n", cwd);
                 snprintf(data, cwd_size, "257-Current working directory is: %s\n", cwd);
@@ -309,6 +312,9 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     }
     
 //     free(data);
+    if (blatant_memory_leak == 1) {
+        free(data);
+    }
     return bytes_sent;     
 }
 /*    END PROCESS REQUEST    */
