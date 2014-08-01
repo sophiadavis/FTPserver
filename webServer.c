@@ -209,7 +209,7 @@ void *process_connection(void *sock) {
 /*    END PROCESS CONNECTION    */
 
 int process_request(char *buffer, int new_socket, int bytes_received, int *sign_in_status) {
-    char *data;// = malloc(sizeof(char) *1024);
+    char *data;
     int len, bytes_sent, num_args;
     
     int blatant_memory_leak = 0;
@@ -268,7 +268,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             
             size_t cwd_size = 1024*sizeof(char);
             char *cwd = malloc(cwd_size);
-            data = malloc(cwd_size); // BLATANT MEMORY LEAK!!!!!!!!!!!!!!!!!!!
+            data = malloc(cwd_size); // BLATANT MEMORY LEAK -- see hack fix later
             blatant_memory_leak = 1;
             if (getcwd(cwd, cwd_size) != NULL) {
                 printf("257-Current working directory is: %s\n", cwd);
@@ -282,6 +282,9 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             free(cwd);
         }
         else if (strcmp(parsed[0], CWD) == 0) {
+            ///////////////////////////////////////////
+            // TODO keep client from going above root????
+            ///////////////////////////////////////////
             int chdir_status = chdir(parsed[1]);
             if (chdir_status == 0) {
                 data = "250-CWD successful";
@@ -291,10 +294,11 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
                 data = "550-CWD error";
             }
         }
-        else if (strcmp(parsed[0], PORT) == 0) {
-            data = "you want the port number";
-        }
+//         else if (strcmp(parsed[0], PORT) == 0) {
+//             data = "you want the port number";
+//         }
         else if (strcmp(parsed[0], NLST) == 0) {
+            // LS.
             data = "you want the nlst??";
         }
         else if (strcmp(parsed[0], RETR) == 0) {
