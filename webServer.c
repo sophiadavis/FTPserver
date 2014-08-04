@@ -215,12 +215,10 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     memset(data, 0, data_size);
     
     int len, bytes_sent, num_args;
-    
-//     int blatant_memory_leak = 0;
-    
+        
     // all commands contain less than two words (otherwise, error)
     num_args = 2;
-    char parsed[num_args][20];// = memset(parsed[2][20], 0, sizeof(parsed[2][20])); // TODO -- is 20 adequate?
+    char parsed[num_args][20];
     
     printf("\nServer received: %s (%i bytes)\n", buffer, bytes_received);
     len = strlen(buffer);
@@ -233,8 +231,6 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             printf("Looking at: %c\n", buffer[i]);
             if (buffer[i] != ' ') {
                 parsed[j][arg_len] = buffer[i];
-//                 snprintf(parsed[j] + arg_len, 1, "%c", buffer[i]);
-//                 strncpy(parsed[j] + arg_len, &buffer[i], 1);
                 arg_len++;
             }
             else {
@@ -249,7 +245,6 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     
     int z = 0;
     for(z = 0; z < num_args; z++) {
-//         strncat(parsed[z], '\0', 1);
         printf("command %zd is %s\n", z, parsed[z]);
         int a = 0;
         for(a = 0; a < (strlen(parsed[z]) + 1); a++) {
@@ -260,7 +255,6 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         }
         printf("\n");
     }
-    printf("HERE: %d, %s, %d, %s (%zd), %s (%zd), %s (%zd)\n", strcmp(parsed[0], USER), buffer, len, parsed[0], strlen(parsed[0]), data, strlen(data), PWD, strlen(PWD));  
 
     for (z = 0; z <= 5; z++) {
         printf("%c ", parsed[0][z]);
@@ -268,15 +262,11 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     }
     
     if (strcmp(parsed[0], USER) == 0) {
-        printf("HERE\n");
         *sign_in_status = sign_in_thread(parsed[1]);
-        printf("HERE\n");
         if (*sign_in_status == 1) {
-//             data = "230-User signed in.";
             snprintf(data, data_size, "%s", "230-User signed in.");
         }
         else {
-//             data = "530-Sign in failure.";
             snprintf(data, data_size, "%s", "530-Sign in failure.");
         }
     }
@@ -288,11 +278,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     else if (*sign_in_status == 1) {
         if (strcmp(parsed[0], PWD) == 0) {
             
-//             size_t cwd_size = 1024*sizeof(char);
             char *cwd = malloc(data_size);
-//             data = malloc(cwd_size); // BLATANT MEMORY LEAK -- see hack fix later
-//             blatant_memory_leak = 1;
-            
             int pwd_status = pwd(cwd, data, data_size);
             free(cwd);
         }
@@ -305,12 +291,10 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             
             int chdir_status = chdir(parsed[1]);
             if (chdir_status == 0) {
-//                 data = "250-CWD successful";
                 snprintf(data, data_size, "%s", "250-CWD successful");
             }
             else {
                 perror("CWD");
-//                 data = "550-CWD error";
                 snprintf(data, data_size, "%s", "550-CWD error");
             }
         }
@@ -319,9 +303,6 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
 //         }
         else if (strcmp(parsed[0], NLST) == 0) {
             // http://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
-//             size_t data_size = 1024*sizeof(char);
-//             data = malloc(data_size);
-//             blatant_memory_leak = 1;
             int bytes_written = 0;
             DIR *d;
             struct dirent *dir;
@@ -333,7 +314,6 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
               closedir(d);
             }
             else {
-//                 data = "550-NLST error";
                 snprintf(data, data_size, "%s", "550-NLST error");
             }
         }
@@ -363,16 +343,13 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             snprintf(data, data_size, "%s", "You want to RETR");
         }
         else if (strcmp(parsed[0], TYPE) == 0) {
-//             data = "you want the type";
             snprintf(data, data_size, "%s", "You want the Type");
         }
         else {
-//             data = "500-Syntax error, command unrecognized.";
             snprintf(data, data_size, "%s", "500-Syntax error, command unrecognized.");
         }
     }
     else {
-//         data = "530-User not logged in.";
         snprintf(data, data_size, "%s", "530-User not logged in.");
     }
     
@@ -383,17 +360,12 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         memset(parsed[z], 0, strlen(parsed[z]));
     }
     
-//     if (blatant_memory_leak == 1) {
-//         free(data);
-//         blatant_memory_leak = 0;
-//     }
     free(data);
     return bytes_sent;     
 }
 /*    END PROCESS REQUEST    */
 
 int sign_in_thread(char *username) {
-    printf("signing in\n");
     if (strcmp(username, "anonymous") == 0) {
         return 1;
     }
