@@ -309,6 +309,27 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             }
         }
         else if (strcmp(parsed[0], RETR) == 0) {
+            
+//             FILE *fp;
+//             fp = fopen("file.txt", "r");
+//     
+//             if (fp == NULL) {
+//               fprintf(stderr, "Can't open file!\n");
+//               exit(1);
+//             }
+//     
+//             char fileBuf[1000];
+//             char myFile[10000];
+//             strncpy(myFile,"FILE: \n", 7);
+//             int numCharsAllotted = 1;
+//             while (fgets(fileBuf, 1000, fp) != NULL) { // while we haven't reached EOF
+//                 strncat(myFile, fileBuf, numCharsAllotted*1000);
+//                 numCharsAllotted++;
+//             }
+//             printf("%s", myString);
+//     
+//             fclose(fp);
+            
             data = "retr?? wtf";
         }
         else if (strcmp(parsed[0], TYPE) == 0) {
@@ -330,7 +351,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     }
     
     if (blatant_memory_leak == 1) {
-        //free(data);
+        free(data);
         blatant_memory_leak = 0;
     }
     return bytes_sent;     
