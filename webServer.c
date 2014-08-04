@@ -218,32 +218,15 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     size_t i = 0;
     size_t j = 0;
     size_t arg_len = 0;
-    
-//     while (j < num_args) {
-//         while (i < len + 1) {
-//             printf("Looking at: %c\n", buffer[i]);
-//             if (buffer[i] != ' ' && buffer[i] != '\n') {
-//                 parsed[j][arg_len] = buffer[i];
-//                 arg_len++;
-//             }
-//             else {
-//                 parsed[j][arg_len] = '\0';
-//                 j++;
-//                 arg_len = 0; // Reset length of current arg
-//             }
-//             i++;
-//         }
-//         break;
-//     }
 
     while (j < num_args) {
         memset(parsed[j], '\0', 20);
         char * pch;
         printf ("Splitting buffer into tokens: %s\n", buffer);
-        pch = strtok(buffer," \t\n");
+        pch = strtok(buffer," \t\n\r");
         while (pch != NULL) {
             snprintf(parsed[j], 20, "%s", pch);
-            pch = strtok(NULL, " \t\n");
+            pch = strtok(NULL, " \t\n\r");
             j++;
         }
     }
@@ -253,10 +236,15 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         printf("command %zd is %s\n", z, parsed[z]);
         int a = 0;
         for(a = 0; a < 20; a++) {
-            printf("%c-", parsed[z][a]);
             if (parsed[z][a] == '\0') {
                 printf("NULL");
             }
+            else {
+              printf("%c-\n", parsed[z][a]);
+//                 printf("%#x-\n", parsed[z][a]);
+//                putchar(parsed[z][a]);
+            }
+            putchar('\n');
         }
         z++;
         printf("\n");
