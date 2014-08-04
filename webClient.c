@@ -50,16 +50,18 @@ int main(int argc, char *argv[]) {
     }
     
     freeaddrinfo(results);
-    
-    printf("\nConnected to server.\n");
-    
+        
     int bufsize = 1024;
     int commandsize = 20*sizeof(char);
     char *buffer = malloc(bufsize);
+    
+    recv(sock, buffer, bufsize-1, 0);
+    printf("%s", buffer);
+    
+    
     char *command = malloc(commandsize);
     int len, bytes_sent, bytes_received;
     while (1) {
-//         printf("--Client starting while loop.--\n");
         memset(buffer, 0, bufsize); // Clear buffer
         memset(command, 0, commandsize); // Clear command
         printf("> ");

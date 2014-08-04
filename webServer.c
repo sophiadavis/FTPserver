@@ -140,18 +140,6 @@ int main(int argc, char *argv[]){
             num_threads++;
             pthread_create(&tid, NULL, &process_connection, &new_socket);
             printf("\nA client has connected, new thread created. Total threads: %d.\n", num_threads);
-            
-//             /// WHERE SHOULD THIS GO???
-//             // thread has completed work
-//             int *total_bytes_sent;
-//             int join_status = pthread_join(tid, (void **) &total_bytes_sent);
-//             
-//             if (join_status == 0) {
-//                 printf("Thread closed. %d total bytes sent.\n", *total_bytes_sent);
-//             }
-//             else {
-//                 printf("Error joining thread\n");
-//             }
         }
     }
     freeaddrinfo(results);
@@ -170,6 +158,11 @@ void *process_connection(void *sock) {
     
     // get int from int*
     new_socket = *new_socket_ptr;
+    
+    // Initial connection
+    char *initial_message;
+    initial_message = "220 Sophia's FTP server (Version 0.0) ready.\n";
+    send(new_socket, initial_message, strlen(initial_message), 0);
         
 // 5. Send and receive data
     int bufsize = 1024;
@@ -226,45 +219,59 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     size_t j = 0;
     size_t arg_len = 0;
     
+//     while (j < num_args) {
+//         while (i < len + 1) {
+//             printf("Looking at: %c\n", buffer[i]);
+//             if (buffer[i] != ' ' && buffer[i] != '\n') {
+//                 parsed[j][arg_len] = buffer[i];
+//                 arg_len++;
+//             }
+//             else {
+//                 parsed[j][arg_len] = '\0';
+//                 j++;
+//                 arg_len = 0; // Reset length of current arg
+//             }
+//             i++;
+//         }
+//         break;
+//     }
+
     while (j < num_args) {
-        while (i < len + 1) {
-            printf("Looking at: %c\n", buffer[i]);
-            if (buffer[i] != ' ') {
-                parsed[j][arg_len] = buffer[i];
-                arg_len++;
-            }
-            else {
-                parsed[j][arg_len] = '\0';
-                j++;
-                arg_len = 0; // Reset length of current arg
-            }
-            i++;
+        memset(parsed[j], '\0', 20);
+        char * pch;
+        printf ("Splitting buffer into tokens: %s\n", buffer);
+        pch = strtok(buffer," \t\n");
+        while (pch != NULL) {
+            snprintf(parsed[j], 20, "%s", pch);
+            pch = strtok(NULL, " \t\n");
+            j++;
         }
-        break;
     }
     
     int z = 0;
-    for(z = 0; z < num_args; z++) {
+    while(z < num_args) {
         printf("command %zd is %s\n", z, parsed[z]);
         int a = 0;
-        for(a = 0; a < (strlen(parsed[z]) + 1); a++) {
+        for(a = 0; a < 20; a++) {
             printf("%c-", parsed[z][a]);
             if (parsed[z][a] == '\0') {
                 printf("NULL");
             }
         }
+        z++;
         printf("\n");
     }
-
-    for (z = 0; z <= 5; z++) {
-        printf("%c ", parsed[0][z]);
-        printf("- %c\n", PWD[z]);
-    }
     
+    printf("********\n");
+    printf("%s (%zd), %s (%zd)\n", parsed[0], strlen(parsed[0]), parsed[1], strlen(parsed[1]));
+    
+    printf("********\n");
+    
+    printf("%s == %s (%s)? %d\n", parsed[0], USER, parsed[1], strcmp(parsed[0], USER));
     if (strcmp(parsed[0], USER) == 0) {
         *sign_in_status = sign_in_thread(parsed[1]);
         if (*sign_in_status == 1) {
-            snprintf(data, data_size, "%s", "230-User signed in.");
+            snprintf(data, data_size, "%s", "230-User signed in. Using binary mode to transfer files.");
         }
         else {
             snprintf(data, data_size, "%s", "530-Sign in failure.");
@@ -318,9 +325,9 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             }
         }
         else if (strcmp(parsed[0], RETR) == 0) {
-            
+//             
 //             FILE *fp;
-//             fp = fopen("file.txt", "r");
+//             fp = fopen(parsed[1], "r");
 //     
 //             if (fp == NULL) {
 //               fprintf(stderr, "Can't open file!\n");
@@ -339,7 +346,6 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
 //     
 //             fclose(fp);
             
-//             data = "retr?? wtf";
             snprintf(data, data_size, "%s", "You want to RETR");
         }
         else if (strcmp(parsed[0], TYPE) == 0) {
@@ -374,8 +380,7 @@ int sign_in_thread(char *username) {
     }
 }
 
-// copies working directory into "data"
-// need refactoring!!!
+// Copies working directory into "data," along with appropriate success code
 int pwd(char *cwd, char *data, size_t cwd_size) {
     if (getcwd(cwd, cwd_size) != NULL) {
         printf("257-Current working directory is: %s\n", cwd);
