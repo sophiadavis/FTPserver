@@ -15,6 +15,8 @@ void* process_connection(void *sock);
 int process_request(char *buffer, int new_socket, int bytes_received, int *signed_in);
 int sign_in_thread(char *username);
 int pwd(char *cwd, char *data, size_t cwd_size);
+int prepare_socket(int port, struct addrinfo *results);
+void check_status(int status, const char *error);
 
 // Commands
 const char *USER = "USER";
@@ -56,82 +58,39 @@ const char *FEAT = "FEAT";
 const char *PASV = "PASV";
         
 int num_threads = 0;
+int MAIN_PORT = 5000;
 const char *ROOT = "/var/folders/r6/mzb0s9jd1639123lkcsv4mf00000gn/T/server";
 
 int main(int argc, char *argv[]){
-
+    
+    // Set directory of server
     int cwd_success = chdir(ROOT);
     if (cwd_success < 0) {
         perror("server: CSD");
         exit(1);
     }
     
-    int listening_socket, new_socket;
+    // For storing results from creating socket
+    struct addrinfo *results;
     
-    // Socket address information
-        // sockaddr_in contains IPv4 information
-        struct sockaddr_in address_in; 
-        address_in.sin_family = AF_INET;
-        address_in.sin_port = htons(5000);
-        address_in.sin_addr.s_addr = INADDR_ANY;
-            
-        // addrinfo contains info about the socket
-        struct addrinfo address;
-        memset(&address, 0, sizeof(address));
-        address.ai_socktype = SOCK_STREAM;
-        address.ai_protocol = 0;
-        address.ai_addr = (struct sockaddr *) &address_in;
-        address.ai_flags = AI_PASSIVE;
+    // Create and bind socket to specified port
+    int listening_socket = prepare_socket(MAIN_PORT, results);
     
-        // For storing results from getaddrinfo
-        struct addrinfo *results;
-     
-    int status = getaddrinfo(NULL, "5000", &address, &results);
-    if (status != 0) {
-        fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
-        exit(1);
-    }
-    
-// 1. Create socket
-    listening_socket = socket(results->ai_family, results->ai_socktype, results->ai_protocol); // IPv4, stream, 0 = choose correct protocol for stream vs datagram 
-    if (listening_socket > 0) {
-        printf("Socket created.\n");
-    }
-    
-    // Allow reuse of port -- from Beej
-    int yes = 1;
-    if (setsockopt(listening_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-        perror("setsockopt");
-        exit(1);
-    }  
-    
-// 2. Bind socket to address
-    if (bind(listening_socket, (struct sockaddr *) &address_in, sizeof(address_in)) == 0) { // socket id, *sockaddr struct w address info, length (in bytes) of address                                                         
-        printf("Binding socket...\n");
-    }
-    else {
-        printf("I'm not binding!\n");
-        perror("server: bind");
-        exit(1);
-    }
-    
-// 3. Listen for connections
+    // Listen for connections
     pid_t pID;
+    int new_socket;
     while (1) {
-        
-        if (listen(listening_socket, 10) < 0) { // socketfd and backlog (# requests kept waiting)
-            printf("I'm not listening!\n");
-            perror("server: listen");
-            exit(1);
-        }
     
-// 4. Accept clients
+        int listen_status = listen(listening_socket, 10);
+        check_status(listen_status, "listen");
+    
+    // Accept clients
     
     // Make a new socket specifically for sending/receiving data w this client
     // Info about incoming connection goes into sockaddr_storage struct 
-        
         struct sockaddr_storage client;
         socklen_t addr_size = sizeof(client);
+        
         if ((new_socket = accept(listening_socket, (struct sockaddr *) &client, &addr_size)) < 0) {
             perror("server: accept");
             printf("I'm not accepting!\n");
@@ -393,3 +352,59 @@ int pwd(char *cwd, char *data, size_t cwd_size) {
         exit(1);
     }
 }
+
+int prepare_socket(int port, struct addrinfo *results) {
+
+    int listening_socket;
+    
+    // Socket address information:
+    struct sockaddr_in address_in; // sockaddr_in contains IPv4 information 
+    address_in.sin_family = AF_INET; // IPv4
+    address_in.sin_port = htons(port);
+    address_in.sin_addr.s_addr = INADDR_ANY; // expects 4-byte IP address (INADDR_ANY = use my IPv4 address)
+        
+    struct addrinfo address; // addrinfo contains info about the socket
+    memset(&address, 0, sizeof(address));
+    address.ai_socktype = SOCK_STREAM;
+    address.ai_protocol = 0; // 0 = choose correct protocol for stream vs datagram
+    address.ai_addr = (struct sockaddr *) &address_in;
+    address.ai_flags = AI_PASSIVE; // fills in IP automatically
+    
+    char port_str[5];
+    sprintf(port_str, "%d", port);
+     
+    int status = getaddrinfo(NULL, port_str, &address, &results); // results stored in results
+    char message[50];
+    sprintf(message, "getaddrinfo error: %s\n", gai_strerror(status));
+    check_status(status, message);
+    
+    // Create socket
+    listening_socket = socket(results->ai_family, results->ai_socktype, results->ai_protocol); 
+    if (listening_socket > 0) {
+        printf("Socket created, listening on port %s.\n", port_str);
+    }
+    
+    // Allow reuse of port -- from Beej
+    int yes = 1;
+    int sockopt_status = setsockopt(listening_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+    check_status(sockopt_status, "setsockopt");
+    
+    // Bind socket to address
+    // socket id, *sockaddr struct w address info, length (in bytes) of address
+    int bind_status = bind(listening_socket, (struct sockaddr *) &address_in, sizeof(address_in));                                                          
+    check_status(bind_status, "bind");
+    printf("Binding socket...\n");
+    
+    return listening_socket;
+}
+
+void check_status(int status, const char *error) {
+    if (status < 0) {
+        char message[20];
+        sprintf(message, "server: %s", error);
+        perror(message);
+        exit(1);
+    }
+}
+
+
