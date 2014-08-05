@@ -400,7 +400,7 @@ int prepare_socket(int port, struct addrinfo *results) {
 
 void check_status(int status, const char *error) {
     if (status < 0) {
-        char message[20];
+        char message[100];
         sprintf(message, "server: %s", error);
         perror(message);
         exit(1);
