@@ -12,7 +12,7 @@
 #include <pthread.h>
 
 void* process_connection(void *sock);
-int process_request(char *buffer, int new_socket, int bytes_received, int *signed_in);
+int process_request(char *buffer, int new_socket, int bytes_received, int *signed_in, int *data_port, int *data_socket);
 int sign_in_thread(char *username);
 int pwd(char *cwd, char *data, size_t cwd_size);
 int prepare_socket(int port, struct addrinfo *results);
@@ -60,6 +60,7 @@ const char *PASV = "PASV";
         
 int num_threads = 0;
 int MAIN_PORT = 5000;
+int CURRENT_CONNECTION_PORT = 5000;
 const char *ROOT = "/var/folders/r6/mzb0s9jd1639123lkcsv4mf00000gn/T/server";
 
 int main(int argc, char *argv[]){
@@ -100,6 +101,8 @@ void *process_connection(void *sock) {
     int *new_socket_ptr;
     int new_socket;
     int signed_in = 0;
+    int data_port = CURRENT_CONNECTION_PORT;
+    int data_socket = 0;
     
     // cast void* as int*
     new_socket_ptr = (int *) sock;
@@ -125,7 +128,7 @@ void *process_connection(void *sock) {
         check_status(bytes_received, "receive");
         
         if (bytes_received > 0) {
-            bytes_sent  = process_request(buffer, new_socket, bytes_received, &signed_in);
+            bytes_sent  = process_request(buffer, new_socket, bytes_received, &signed_in, &data_port, &data_socket);
             check_status(bytes_sent, "send");
             *total_bytes_sent += bytes_sent;
         }
@@ -143,7 +146,7 @@ void *process_connection(void *sock) {
 /*    END PROCESS CONNECTION    */
 
 // Handles FTP client requests and sends appropriate responses
-int process_request(char *buffer, int new_socket, int bytes_received, int *sign_in_status) {
+int process_request(char *buffer, int new_socket, int bytes_received, int *sign_in_status, int *data_port, int *data_socket) {
     size_t data_size = 1024*sizeof(char);
     char *data = malloc(data_size);
     memset(data, 0, data_size);
@@ -228,24 +231,37 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
                 snprintf(data, data_size, "%s", "550 CWD error\n");
             }
         }
-//         else if (strcmp(parsed[0], PORT) == 0) {
-//             data = "you want the port number";
-//         }
         else if (strcmp(parsed[0], NLST) == 0) {
             // http://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
             int bytes_written = 0;
             DIR *d;
             struct dirent *dir;
             d = opendir(".");
+            char data_line[20];
             if (d) {
               while ((dir = readdir(d)) != NULL) {
-                bytes_written = bytes_written + snprintf(data + bytes_written, data_size, "\n%s", dir->d_name);
+//                 snprintf(data_line, 15, "%s\r\n", dir->d_name);
+//                 printf("%s\n", data_line);
+//                 send(new_socket, &data_line, 20, 0);
+                
+                bytes_written = bytes_written + snprintf(data + bytes_written, data_size, "%s", dir->d_name);
+                
               }
               closedir(d);
+              snprintf(data + bytes_written, data_size, "\r\n");
             }
             else {
                 snprintf(data, data_size, "%s", "550 NLST error\n");
             }
+//             int i;
+//             char data_char[1];
+//             for (i = 0; i < (strlen(data) + 1); i++) {
+//                 snprintf(data_char, 1, "%c", data[i]);
+//                 putchar(data[i]);
+//                 printf("---Sending byte: %c\n", data[i]);
+//                 send(new_socket, &data[i], 1, 0);
+//             }
+//             send(new_socket, &("\r\n"), 1, 0);
         }
         else if (strcmp(parsed[0], RETR) == 0) {
 //             
@@ -272,7 +288,12 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             snprintf(data, data_size, "%s", "You want to RETR\n");
         }
         else if (strcmp(parsed[0], TYPE) == 0) {
-            snprintf(data, data_size, "%s", "You want the Type\n");
+            if (strcmp(parsed[1], "I") == 0) {
+                snprintf(data, data_size, "%s", "200 Using binary mode to transfer files.\n");
+            }
+            else {
+                snprintf(data, data_size, "%s", "4530 I only work with binary (u suck).\n");
+            }
         }
         else if (strcmp(parsed[0], SYST) == 0) {
             snprintf(data, data_size, "%s", "215 MACOS Sophia's Server\n");
@@ -282,7 +303,21 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         }
         // 200 host and port address
         else if (strcmp(parsed[0], PASV) == 0) {
-            snprintf(data, data_size, "%s\n", "227 Entering Passive Mode (127,0,0,1,50,00)");
+//             CURRENT_CONNECTION_PORT++;
+//             *data_port = CURRENT_CONNECTION_PORT;
+//             struct addrinfo *data_results;
+//             *data_socket = prepare_socket(*data_port, data_results);
+            
+            // Client expects (a1,a2,a3,a4,p1,p2), where port = p1*256 + p2
+//             int p1 = *data_port / 256;
+//             int p2 = *data_port % 256;
+            int p1 = 5000 / 256;
+            int p2 = 5000 % 256;
+            snprintf(data, data_size, "%s =127,0,0,1,%i,%i\n", "227 Entering Passive Mode", p1, p2);
+//             freeaddrinfo(data_results);
+        }
+        else if (strcmp(parsed[0], PORT) == 0) {
+            snprintf(data, data_size, "%s\n", "425 No ok");
         }
         else {
             snprintf(data, data_size, "%s", "500 Syntax error, command unrecognized.\n");
