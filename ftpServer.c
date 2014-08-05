@@ -1,11 +1,11 @@
-#include<netinet/in.h>    
-#include<stdio.h>    
-#include<stdlib.h>
-#include<string.h>    
-#include<sys/socket.h>    
-#include<sys/stat.h>    
-#include<sys/types.h>    
-#include<unistd.h>  
+#include <netinet/in.h>    
+#include <stdio.h>    
+#include <stdlib.h>
+#include <string.h>    
+#include <sys/socket.h>    
+#include <sys/stat.h>    
+#include <sys/types.h>    
+#include <unistd.h>  
 #include <netdb.h>
 #include <dirent.h>
 
@@ -17,6 +17,7 @@ int sign_in_thread(char *username);
 int pwd(char *cwd, char *data, size_t cwd_size);
 int prepare_socket(int port, struct addrinfo *results);
 void check_status(int status, const char *error);
+int begin_connection(int listening_socket);
 
 // Commands
 const char *USER = "USER";
@@ -84,25 +85,8 @@ int main(int argc, char *argv[]){
         int listen_status = listen(listening_socket, 10);
         check_status(listen_status, "listen");
     
-    // Accept clients
-    
-    // Make a new socket specifically for sending/receiving data w this client
-    // Info about incoming connection goes into sockaddr_storage struct 
-        struct sockaddr_storage client;
-        socklen_t addr_size = sizeof(client);
-        
-        if ((new_socket = accept(listening_socket, (struct sockaddr *) &client, &addr_size)) < 0) {
-            perror("server: accept");
-            printf("I'm not accepting!\n");
-            exit(1);
-        }
-    
-        if (new_socket > 0) {
-            pthread_t tid;
-            num_threads++;
-            pthread_create(&tid, NULL, &process_connection, &new_socket);
-            printf("\nA client has connected, new thread created. Total threads: %d.\n", num_threads);
-        }
+        // Accept clients, spawn new thread for each connection
+        new_socket = begin_connection(listening_socket);
     }
     freeaddrinfo(results);
     close(new_socket);
@@ -110,6 +94,8 @@ int main(int argc, char *argv[]){
     return 0;
 }
 
+// Executed by new thread when server accepts new connection
+// Receives client requests, calls process_request to parse request and send appropriate response
 void *process_connection(void *sock) {
     int *new_socket_ptr;
     int new_socket;
@@ -120,50 +106,43 @@ void *process_connection(void *sock) {
     
     // get int from int*
     new_socket = *new_socket_ptr;
-    
-    // Initial connection
-    char *initial_message;
-    initial_message = "220 Sophia's FTP server (Version 0.0) ready.\n";
-    send(new_socket, initial_message, strlen(initial_message), 0);
         
-// 5. Send and receive data
+    // Prepare to send and receive data
     int bufsize = 1024;
     int *total_bytes_sent = malloc(sizeof(int));
-    *total_bytes_sent = 0;
     char *buffer = malloc(bufsize);
-    int bytes_received, bytes_sent;
+    int bytes_received;
+    
+    // Send message initializing connection
+    char *initial_message;
+    initial_message = "220 Sophia's FTP server (Version 0.0) ready.\n";
+    int bytes_sent = send(new_socket, initial_message, strlen(initial_message), 0);
+    *total_bytes_sent = bytes_sent;
     
     while (1) {
         memset(buffer, 0, bufsize);
         bytes_received = recv(new_socket, buffer, bufsize, 0);
+        check_status(bytes_received, "receive");
+        
         if (bytes_received > 0) {
             bytes_sent  = process_request(buffer, new_socket, bytes_received, &signed_in);
+            check_status(bytes_sent, "send");
+            *total_bytes_sent += bytes_sent;
         }
-        
-        // TODO -- error checking?
-        if (bytes_sent < 0) {
-            close(new_socket);
-            printf("?????Server closed connection.\n");
-            exit(0);
-        }
-        
-        // Client has terminated.
-        else if (bytes_sent == 0) {
+        else { // bytes_recv == 0 (client closed connection)
             close(new_socket);
             printf("Client closed connection.\n");
             break;
         }
-        else {
-            *total_bytes_sent += bytes_sent;
-        }
     }
-    free(buffer);
     printf("Thread closed. %d total bytes sent. Threads still active: %d.\n", *total_bytes_sent, num_threads);
+    free(buffer);
     free(total_bytes_sent);
     pthread_exit((void *) total_bytes_sent);
 }
 /*    END PROCESS CONNECTION    */
 
+// Handles FTP client requests and sends appropriate responses
 int process_request(char *buffer, int new_socket, int bytes_received, int *sign_in_status) {
     size_t data_size = 1024*sizeof(char);
     char *data = malloc(data_size);
@@ -226,7 +205,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     }
     else if (strcmp(parsed[0], QUIT) == 0) {
         num_threads--;
-        printf("Closing connection.\n");
+        send(new_socket, "221\n", 5, 0);
         return 0;
     }
     else if (*sign_in_status == 1) {
@@ -341,9 +320,7 @@ int sign_in_thread(char *username) {
 // Copies working directory into "data," along with appropriate success code
 int pwd(char *cwd, char *data, size_t cwd_size) {
     if (getcwd(cwd, cwd_size) != NULL) {
-        printf("257 Current working directory is: %s\n", cwd);
         snprintf(data, cwd_size, "257 \"%s\" \n", cwd);
-//         snprintf(data, cwd_size, "257 Current working directory is: '/'\n");
         return 1;
     }
     else {
@@ -398,6 +375,7 @@ int prepare_socket(int port, struct addrinfo *results) {
     return listening_socket;
 }
 
+// Sets appropriate error message if status indicates error
 void check_status(int status, const char *error) {
     if (status < 0) {
         char message[100];
@@ -405,6 +383,27 @@ void check_status(int status, const char *error) {
         perror(message);
         exit(1);
     }
+}
+
+// Accept connection and spawn new thread
+int begin_connection(int listening_socket) {
+    // Make a new socket specifically for sending/receiving data w this client
+    int new_socket;
+    
+    // Info about incoming connection goes into sockaddr_storage struct 
+    struct sockaddr_storage client;
+    socklen_t addr_size = sizeof(client);
+    
+    new_socket = accept(listening_socket, (struct sockaddr *) &client, &addr_size);
+    check_status(new_socket, "accept");
+
+    if (new_socket > 0) {
+        pthread_t tid;
+        num_threads++;
+        pthread_create(&tid, NULL, &process_connection, &new_socket);
+        printf("\nA client has connected, new thread created. Total threads: %d.\n", num_threads);
+    }
+    return new_socket;
 }
 
 
