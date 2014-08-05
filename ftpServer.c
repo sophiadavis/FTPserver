@@ -157,20 +157,17 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     printf("\n------------------------------------------\n");
     printf("\nServer received: %s (%i bytes)\n", buffer, bytes_received);
     len = strlen(buffer);
-    size_t i = 0;
     size_t j = 0;
     size_t arg_len = 0;
 
-    while (j < num_args) {
+    // TODO -- GETCHAR OF BUFFER???
+    char * pch;
+    pch = strtok(buffer," \t\n\r");
+    while (pch != NULL && j < num_args) {
         memset(parsed[j], '\0', 20);
-        char * pch;
-        printf ("Splitting buffer into tokens: %s\n", buffer);
-        pch = strtok(buffer," \t\n\r");
-        while (pch != NULL) {
-            snprintf(parsed[j], 20, "%s", pch);
-            pch = strtok(NULL, " \t\n\r");
-            j++;
-        }
+        snprintf(parsed[j], 20, "%s", pch);
+        pch = strtok(NULL, " \t\n\r");
+        j++;
     }
     
     int z = 0;
