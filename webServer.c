@@ -25,7 +25,7 @@ const char *QUIT = "QUIT";
         // QUIT <CRLF>
         // Quit
         // Return 221. The server now knows that nobody is logged in.
-const char *PWD = "PWD"; 
+const char *PWD = "PWD";  // "pwd";//
         //PWD <CRLF>
         // Print working directory.
         // Reply with 257 (and include the working directory as the string following the reply number).
@@ -51,6 +51,9 @@ const char *RETR = "RETR";
 const char *TYPE = "TYPE";
         // TYPE <Transfer mode> <CRLF>
         // simply reply with 200
+const char *SYST = "SYST";
+const char *FEAT = "FEAT";
+const char *PASV = "PASV";
         
 int num_threads = 0;
 const char *ROOT = "/var/folders/r6/mzb0s9jd1639123lkcsv4mf00000gn/T/server";
@@ -213,6 +216,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     num_args = 2;
     char parsed[num_args][20];
     
+    printf("\n------------------------------------------\n");
     printf("\nServer received: %s (%i bytes)\n", buffer, bytes_received);
     len = strlen(buffer);
     size_t i = 0;
@@ -237,14 +241,11 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         int a = 0;
         for(a = 0; a < 20; a++) {
             if (parsed[z][a] == '\0') {
-                printf("NULL");
+                printf("NULL-");
             }
             else {
-              printf("%c-\n", parsed[z][a]);
-//                 printf("%#x-\n", parsed[z][a]);
-//                putchar(parsed[z][a]);
+              printf("%c-", parsed[z][a]);
             }
-            putchar('\n');
         }
         z++;
         printf("\n");
@@ -255,14 +256,13 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     
     printf("********\n");
     
-    printf("%s == %s (%s)? %d\n", parsed[0], USER, parsed[1], strcmp(parsed[0], USER));
     if (strcmp(parsed[0], USER) == 0) {
         *sign_in_status = sign_in_thread(parsed[1]);
         if (*sign_in_status == 1) {
-            snprintf(data, data_size, "%s", "230-User signed in. Using binary mode to transfer files.");
+            snprintf(data, data_size, "%s", "230 User signed in. Using binary mode to transfer files.\n");
         }
         else {
-            snprintf(data, data_size, "%s", "530-Sign in failure.");
+            snprintf(data, data_size, "%s", "530 Sign in failure.\n");
         }
     }
     else if (strcmp(parsed[0], QUIT) == 0) {
@@ -286,11 +286,11 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             
             int chdir_status = chdir(parsed[1]);
             if (chdir_status == 0) {
-                snprintf(data, data_size, "%s", "250-CWD successful");
+                snprintf(data, data_size, "%s", "250 CWD successful\n");
             }
             else {
                 perror("CWD");
-                snprintf(data, data_size, "%s", "550-CWD error");
+                snprintf(data, data_size, "%s", "550 CWD error\n");
             }
         }
 //         else if (strcmp(parsed[0], PORT) == 0) {
@@ -309,7 +309,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
               closedir(d);
             }
             else {
-                snprintf(data, data_size, "%s", "550-NLST error");
+                snprintf(data, data_size, "%s", "550 NLST error\n");
             }
         }
         else if (strcmp(parsed[0], RETR) == 0) {
@@ -334,25 +334,36 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
 //     
 //             fclose(fp);
             
-            snprintf(data, data_size, "%s", "You want to RETR");
+            snprintf(data, data_size, "%s", "You want to RETR\n");
         }
         else if (strcmp(parsed[0], TYPE) == 0) {
-            snprintf(data, data_size, "%s", "You want the Type");
+            snprintf(data, data_size, "%s", "You want the Type\n");
+        }
+        else if (strcmp(parsed[0], SYST) == 0) {
+            snprintf(data, data_size, "%s", "215 MACOS Sophia's Server\n");
+        }
+        else if (strcmp(parsed[0], FEAT) == 0) {
+            snprintf(data, data_size, "%s", "211 end\n");
+        }
+        // 200 host and port address
+        else if (strcmp(parsed[0], PASV) == 0) {
+            snprintf(data, data_size, "%s\n", "227 Entering Passive Mode (127,0,0,1,50,00)");
         }
         else {
-            snprintf(data, data_size, "%s", "500-Syntax error, command unrecognized.");
+            snprintf(data, data_size, "%s", "500 Syntax error, command unrecognized.\n");
         }
     }
     else {
-        snprintf(data, data_size, "%s", "530-User not logged in.");
+        snprintf(data, data_size, "%s", "530 User not logged in.\n");
     }
     
     bytes_sent = send(new_socket, data, strlen(data), 0);
+    printf("Data sent: %s\n", data);
     
     // Clear out parsed arguments
-    for(z = 0; z < num_args; z++) {
-        memset(parsed[z], 0, strlen(parsed[z]));
-    }
+//     for(z = 0; z < num_args; z++) {
+//         memset(parsed[z], 0, strlen(parsed[z]));
+//     }
     
     free(data);
     return bytes_sent;     
@@ -371,8 +382,9 @@ int sign_in_thread(char *username) {
 // Copies working directory into "data," along with appropriate success code
 int pwd(char *cwd, char *data, size_t cwd_size) {
     if (getcwd(cwd, cwd_size) != NULL) {
-        printf("257-Current working directory is: %s\n", cwd);
-        snprintf(data, cwd_size, "257-Current working directory is: %s\n", cwd);
+        printf("257 Current working directory is: %s\n", cwd);
+        snprintf(data, cwd_size, "257 \"%s\" \n", cwd);
+//         snprintf(data, cwd_size, "257 Current working directory is: '/'\n");
         return 1;
     }
     else {
