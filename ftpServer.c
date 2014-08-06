@@ -12,7 +12,7 @@
 #include <pthread.h>
 
 void* process_control_connection(void *sock);
-int process_request(char *buffer, int new_socket, int bytes_received, int *signed_in, int *data_port, int *data_socket);
+int process_request(char *buffer, int new_socket, int bytes_received, int *signed_in, int *data_port, int *listening_data_socket, int *accept_data_socket);
 int sign_in_thread(char *username);
 int pwd(char *cwd, char *data, size_t cwd_size);
 int prepare_socket(int port, struct addrinfo *results);
@@ -102,7 +102,8 @@ void *process_control_connection(void *sock) {
     // Bookkeeping for this thread
     int signed_in = 0;
     int data_port = CURRENT_CONNECTION_PORT;
-    int data_socket = 0;
+    int listening_data_socket = 0;
+    int accept_data_socket = 0;
     
     // Cast void* as int*
     int *new_socket_ptr = (int *) sock;
@@ -128,7 +129,7 @@ void *process_control_connection(void *sock) {
         check_status(bytes_received, "receive");
         
         if (bytes_received > 0) {
-            bytes_sent  = process_request(buffer, new_socket, bytes_received, &signed_in, &data_port, &data_socket);
+            bytes_sent  = process_request(buffer, new_socket, bytes_received, &signed_in, &data_port, &listening_data_socket, &accept_data_socket);
             check_status(bytes_sent, "send");
             *total_bytes_sent += bytes_sent;
         }
@@ -171,24 +172,26 @@ void *process_data_connection(void *sock) {
         check_status(new_socket, "accept");
         printf("\naccepted, connection began\n");
         
-Send message initializing connection
-        initial_message = "220 Sophia's FTP server DATA CONNECTION (Version 0.0) ready.\r\n";
-        int bytes_sent = send(new_socket, initial_message, strlen(initial_message), 0);
-        check_status(bytes_sent, "send");
-        
-        close(listening_data_socket);
-        close(new_socket);
+        // Send message initializing connection
+//         initial_message = "220 Sophia's FTP server DATA CONNECTION (Version 0.0) ready.\r\n";
+//         int bytes_sent = send(new_socket, initial_message, strlen(initial_message), 0);
+//         check_status(bytes_sent, "send");
+//         
+//         close(listening_data_socket);
+//         close(new_socket);
     pthread_exit((void *) initial_message);
 }
 /*    END PROCESS DATA CONNECTION    */
 
 // Handles FTP client requests and sends appropriate responses
-int process_request(char *buffer, int new_socket, int bytes_received, int *sign_in_status, int *data_port, int *data_socket) {
+int process_request(char *buffer, int new_socket, int bytes_received, int *sign_in_status, int *data_port, int *listening_data_socket, int *accept_data_socket) {
     size_t data_size = 1024*sizeof(char);
     char *data = malloc(data_size);
     memset(data, '\0', data_size);
     
     int len, bytes_sent, num_args;
+    
+    int already_sent = 0;
         
     // Assuming all commands contain less than two words (TODO: otherwise, error??)
     num_args = 2;
@@ -265,23 +268,26 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         }
         else if (strcmp(parsed[0], NLST) == 0) {
             // http://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
-            int bytes_written = 0;
+            int bytes_data_written = 0;
+            int bytes_response_code_written = 0;
             DIR *d;
             struct dirent *dir;
             d = opendir(".");
-            char data_line[20];
-            bytes_written = snprintf(data, data_size, "%s", "150 Here comes the directory listing. \r\n");
+            char data_over_second_connection[data_size];
+            bytes_response_code_written = snprintf(data, data_size, "%s", "150 Here comes the directory listing. \r\n");
             if (d) {
               while ((dir = readdir(d)) != NULL) {
 //                 snprintf(data_line, 15, "%s\r\n", dir->d_name);
 //                 printf("%s\n", data_line);
 //                 send(new_socket, &data_line, 20, 0);
                 
-                bytes_written = bytes_written + snprintf(data + bytes_written, data_size, "%s \r\n", dir->d_name);
+                bytes_data_written = bytes_data_written + snprintf(data_over_second_connection + bytes_data_written, data_size, "%s \r\n", dir->d_name);
                 
               }
               closedir(d);
-              snprintf(data + bytes_written, data_size, "226-Directory send OK.\r\n");
+              bytes_sent += send(*accept_data_socket, data_over_second_connection, strlen(data_over_second_connection), 0);
+              close(*accept_data_socket);
+              snprintf(data + bytes_response_code_written, data_size, "226 Directory send OK.\r\n");
             }
             else {
                 snprintf(data, data_size, "%s", "550 NLST error\n");
@@ -339,7 +345,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             CURRENT_CONNECTION_PORT++;
             *data_port = CURRENT_CONNECTION_PORT;
             struct addrinfo *data_results;
-            *data_socket = prepare_socket(*data_port, data_results);
+            *listening_data_socket = prepare_socket(*data_port, data_results);
             
             
             // Client expects (a1,a2,a3,a4,p1,p2), where port = p1*256 + p2
@@ -348,11 +354,27 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
 //             int p1 = 5000 / 256;
 //             int p2 = 5000 % 256;
             
-            pthread_t tid;
-            NUM_THREADS++;
-            pthread_create(&tid, NULL, &process_data_connection, data_socket);
+            int listen_status = listen(*listening_data_socket, 10);
+            check_status(listen_status, "listen");
+
+            // Accept clients
+            struct sockaddr_storage client;
+            socklen_t addr_size = sizeof(client);
+            printf("\nin loop about to accept?\n");
             
             snprintf(data, data_size, "%s =127,0,0,1,%i,%i\n", "227 Entering Passive Mode", p1, p2);
+            bytes_sent += send(new_socket, data, strlen(data), 0);
+            already_sent = 1;
+        
+            *accept_data_socket = accept(*listening_data_socket, (struct sockaddr *) &client, &addr_size);
+            check_status(*accept_data_socket, "accept");
+            printf("\naccepted, DATA connection began\n");
+            
+//             pthread_t tid;
+//             NUM_THREADS++;
+//             pthread_create(&tid, NULL, &process_data_connection, data_connection_socket);
+            
+            // snprintf(data, data_size, "%s =127,0,0,1,%i,%i\n", "227 Entering Passive Mode", p1, p2);
 //             freeaddrinfo(data_results);
         }
         else if (strcmp(parsed[0], PORT) == 0) {
@@ -365,8 +387,9 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     else {
         snprintf(data, data_size, "%s", "530 User not logged in.\n");
     }
-    
-    bytes_sent = send(new_socket, data, strlen(data), 0);
+    if (already_sent == 0) {
+        bytes_sent = send(new_socket, data, strlen(data), 0);
+    }
     printf("Data sent: %s\n", data);
     
     // Clear out parsed arguments
