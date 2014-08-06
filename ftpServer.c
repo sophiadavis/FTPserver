@@ -58,7 +58,7 @@ const char *SYST = "SYST";
 const char *FEAT = "FEAT";
 const char *PASV = "PASV";
         
-int num_threads = 0;
+int NUM_THREADS = 0;
 int MAIN_PORT = 5000;
 int CURRENT_CONNECTION_PORT = 5000;
 const char *ROOT = "/var/folders/r6/mzb0s9jd1639123lkcsv4mf00000gn/T/server";
@@ -98,17 +98,17 @@ int main(int argc, char *argv[]){
 // Executed by new thread when server accepts new connection
 // Receives client requests, calls process_request to parse request and send appropriate response
 void *process_connection(void *sock) {
-    int *new_socket_ptr;
-    int new_socket;
+    
+    // Bookkeeping for this thread
     int signed_in = 0;
     int data_port = CURRENT_CONNECTION_PORT;
     int data_socket = 0;
     
-    // cast void* as int*
-    new_socket_ptr = (int *) sock;
+    // Cast void* as int*
+    int *new_socket_ptr = (int *) sock;
     
-    // get int from int*
-    new_socket = *new_socket_ptr;
+    // Get int from int*
+    int new_socket = *new_socket_ptr;
         
     // Prepare to send and receive data
     int bufsize = 1024;
@@ -132,13 +132,13 @@ void *process_connection(void *sock) {
             check_status(bytes_sent, "send");
             *total_bytes_sent += bytes_sent;
         }
-        else { // bytes_recv == 0 (client closed connection)
+        else { // bytes_recv == 0
             close(new_socket);
             printf("Client closed connection.\n");
             break;
         }
     }
-    printf("Thread closed. %d total bytes sent. Threads still active: %d.\n", *total_bytes_sent, num_threads);
+    printf("Thread closed. %d total bytes sent. Threads still active: %d.\n", *total_bytes_sent, NUM_THREADS);
     free(buffer);
     free(total_bytes_sent);
     pthread_exit((void *) total_bytes_sent);
@@ -149,21 +149,20 @@ void *process_connection(void *sock) {
 int process_request(char *buffer, int new_socket, int bytes_received, int *sign_in_status, int *data_port, int *data_socket) {
     size_t data_size = 1024*sizeof(char);
     char *data = malloc(data_size);
-    memset(data, 0, data_size);
+    memset(data, '\0', data_size);
     
     int len, bytes_sent, num_args;
         
-    // all commands contain less than two words (otherwise, error)
+    // Assuming all commands contain less than two words (TODO: otherwise, error??)
     num_args = 2;
     char parsed[num_args][20];
     
     printf("\n------------------------------------------\n");
     printf("\nServer received: %s (%i bytes)\n", buffer, bytes_received);
-    len = strlen(buffer);
-    size_t j = 0;
-    size_t arg_len = 0;
 
     // TODO -- GETCHAR OF BUFFER???
+    // Parse buffer, splitting on spaces, tabs, nl, cr
+    int j = 0;
     char * pch;
     pch = strtok(buffer," \t\n\r");
     while (pch != NULL && j < num_args) {
@@ -177,23 +176,19 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     while(z < num_args) {
         printf("command %zd is %s\n", z, parsed[z]);
         int a = 0;
-        for(a = 0; a < 20; a++) {
-            if (parsed[z][a] == '\0') {
-                printf("NULL-");
-            }
-            else {
-              printf("%c-", parsed[z][a]);
-            }
-        }
+//         for(a = 0; a < 20; a++) {
+//             if (parsed[z][a] == '\0') {
+//                 printf("NULL-");
+//             }
+//             else {
+//               printf("%c-", parsed[z][a]);
+//             }
+//         }
         z++;
         printf("\n");
     }
     
-    printf("********\n");
-    printf("%s (%zd), %s (%zd)\n", parsed[0], strlen(parsed[0]), parsed[1], strlen(parsed[1]));
-    
-    printf("********\n");
-    
+    // Find appropriate response based on client's commands
     if (strcmp(parsed[0], USER) == 0) {
         *sign_in_status = sign_in_thread(parsed[1]);
         if (*sign_in_status == 1) {
@@ -204,8 +199,8 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         }
     }
     else if (strcmp(parsed[0], QUIT) == 0) {
-        num_threads--;
-        send(new_socket, "221\n", 5, 0);
+        NUM_THREADS--;
+        send(new_socket, "221 \n", 5, 0);
         return 0;
     }
     else if (*sign_in_status == 1) {
@@ -238,17 +233,18 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             struct dirent *dir;
             d = opendir(".");
             char data_line[20];
+            bytes_written = snprintf(data, data_size, "%s", "150 Here comes the directory listing. \r\n");
             if (d) {
               while ((dir = readdir(d)) != NULL) {
 //                 snprintf(data_line, 15, "%s\r\n", dir->d_name);
 //                 printf("%s\n", data_line);
 //                 send(new_socket, &data_line, 20, 0);
                 
-                bytes_written = bytes_written + snprintf(data + bytes_written, data_size, "%s", dir->d_name);
+                bytes_written = bytes_written + snprintf(data + bytes_written, data_size, "%s \r\n", dir->d_name);
                 
               }
               closedir(d);
-              snprintf(data + bytes_written, data_size, "\r\n");
+              snprintf(data + bytes_written, data_size, "226-Directory send OK.\r\n");
             }
             else {
                 snprintf(data, data_size, "%s", "550 NLST error\n");
@@ -264,35 +260,35 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
 //             send(new_socket, &("\r\n"), 1, 0);
         }
         else if (strcmp(parsed[0], RETR) == 0) {
-//             
-//             FILE *fp;
-//             fp = fopen(parsed[1], "r");
-//     
-//             if (fp == NULL) {
-//               fprintf(stderr, "Can't open file!\n");
-//               exit(1);
-//             }
-//     
-//             char fileBuf[1000];
-//             char myFile[10000];
-//             strncpy(myFile,"FILE: \n", 7);
-//             int numCharsAllotted = 1;
-//             while (fgets(fileBuf, 1000, fp) != NULL) { // while we haven't reached EOF
-//                 strncat(myFile, fileBuf, numCharsAllotted*1000);
-//                 numCharsAllotted++;
-//             }
-//             printf("%s", myString);
-//     
-//             fclose(fp);
             
-            snprintf(data, data_size, "%s", "You want to RETR\n");
+            FILE *fp;
+            fp = fopen(parsed[1], "r");
+    
+            if (fp == NULL) {
+              fprintf(stderr, "Can't open file!\n");
+              exit(1);
+            }
+    
+            char fileBuf[1000];
+            char myFile[10000];
+            strncpy(myFile,"FILE: \n", 7);
+            int numCharsAllotted = 1;
+            while (fgets(fileBuf, 1000, fp) != NULL) { // while we haven't reached EOF
+                strncat(myFile, fileBuf, numCharsAllotted*1000);
+                numCharsAllotted++;
+            }
+            printf("%s", myFile);
+            
+            snprintf(data, data_size, "%s\n", myFile);
+    
+            fclose(fp);
         }
         else if (strcmp(parsed[0], TYPE) == 0) {
             if (strcmp(parsed[1], "I") == 0) {
                 snprintf(data, data_size, "%s", "200 Using binary mode to transfer files.\n");
             }
             else {
-                snprintf(data, data_size, "%s", "4530 I only work with binary (u suck).\n");
+                snprintf(data, data_size, "%s", "502 I only work with binary ?? (u suck).\n");
             }
         }
         else if (strcmp(parsed[0], SYST) == 0) {
@@ -317,7 +313,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
 //             freeaddrinfo(data_results);
         }
         else if (strcmp(parsed[0], PORT) == 0) {
-            snprintf(data, data_size, "%s\n", "425 No ok");
+            snprintf(data, data_size, "%s\n", "200 Port command ok");
         }
         else {
             snprintf(data, data_size, "%s", "500 Syntax error, command unrecognized.\n");
@@ -431,9 +427,9 @@ int begin_connection(int listening_socket) {
 
     if (new_socket > 0) {
         pthread_t tid;
-        num_threads++;
+        NUM_THREADS++;
         pthread_create(&tid, NULL, &process_connection, &new_socket);
-        printf("\nA client has connected, new thread created. Total threads: %d.\n", num_threads);
+        printf("\nA client has connected, new thread created. Total threads: %d.\n", NUM_THREADS);
     }
     return new_socket;
 }
