@@ -11,13 +11,13 @@
 
 #include <pthread.h>
 
-void* process_connection(void *sock);
+void* process_control_connection(void *sock);
 int process_request(char *buffer, int new_socket, int bytes_received, int *signed_in, int *data_port, int *data_socket);
 int sign_in_thread(char *username);
 int pwd(char *cwd, char *data, size_t cwd_size);
 int prepare_socket(int port, struct addrinfo *results);
 void check_status(int status, const char *error);
-int begin_connection(int listening_socket);
+int begin_connection(int listening_socket, void *on_create_function);
 
 // Commands
 const char *USER = "USER";
@@ -87,7 +87,7 @@ int main(int argc, char *argv[]){
         check_status(listen_status, "listen");
     
         // Accept clients, spawn new thread for each connection
-        new_socket = begin_connection(listening_socket);
+        new_socket = begin_connection(listening_socket, &process_control_connection);
     }
     freeaddrinfo(results);
     close(new_socket);
@@ -97,7 +97,7 @@ int main(int argc, char *argv[]){
 
 // Executed by new thread when server accepts new connection
 // Receives client requests, calls process_request to parse request and send appropriate response
-void *process_connection(void *sock) {
+void *process_control_connection(void *sock) {
     
     // Bookkeeping for this thread
     int signed_in = 0;
@@ -143,7 +143,44 @@ void *process_connection(void *sock) {
     free(total_bytes_sent);
     pthread_exit((void *) total_bytes_sent);
 }
-/*    END PROCESS CONNECTION    */
+/*    END PROCESS CONTROL CONNECTION    */
+
+// Executed by new thread when server accepts new connection
+// Receives client requests, calls process_request to parse request and send appropriate response
+void *process_data_connection(void *sock) {
+
+    // Cast void* as int*
+    int *listening_data_socket_ptr = (int *) sock;
+    
+    // Get int from int*
+    int listening_data_socket = *listening_data_socket_ptr;
+
+    int new_socket;
+    char *initial_message;
+//     while (1) {
+
+        int listen_status = listen(listening_data_socket, 10);
+        check_status(listen_status, "listen");
+
+        // Accept clients
+        struct sockaddr_storage client;
+        socklen_t addr_size = sizeof(client);
+        printf("\nin loop about to accept?\n");
+        
+        new_socket = accept(listening_data_socket, (struct sockaddr *) &client, &addr_size);
+        check_status(new_socket, "accept");
+        printf("\naccepted, connection began\n");
+        
+Send message initializing connection
+        initial_message = "220 Sophia's FTP server DATA CONNECTION (Version 0.0) ready.\r\n";
+        int bytes_sent = send(new_socket, initial_message, strlen(initial_message), 0);
+        check_status(bytes_sent, "send");
+        
+        close(listening_data_socket);
+        close(new_socket);
+    pthread_exit((void *) initial_message);
+}
+/*    END PROCESS DATA CONNECTION    */
 
 // Handles FTP client requests and sends appropriate responses
 int process_request(char *buffer, int new_socket, int bytes_received, int *sign_in_status, int *data_port, int *data_socket) {
@@ -299,16 +336,22 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         }
         // 200 host and port address
         else if (strcmp(parsed[0], PASV) == 0) {
-//             CURRENT_CONNECTION_PORT++;
-//             *data_port = CURRENT_CONNECTION_PORT;
-//             struct addrinfo *data_results;
-//             *data_socket = prepare_socket(*data_port, data_results);
+            CURRENT_CONNECTION_PORT++;
+            *data_port = CURRENT_CONNECTION_PORT;
+            struct addrinfo *data_results;
+            *data_socket = prepare_socket(*data_port, data_results);
+            
             
             // Client expects (a1,a2,a3,a4,p1,p2), where port = p1*256 + p2
-//             int p1 = *data_port / 256;
-//             int p2 = *data_port % 256;
-            int p1 = 5000 / 256;
-            int p2 = 5000 % 256;
+            int p1 = *data_port / 256;
+            int p2 = *data_port % 256;
+//             int p1 = 5000 / 256;
+//             int p2 = 5000 % 256;
+            
+            pthread_t tid;
+            NUM_THREADS++;
+            pthread_create(&tid, NULL, &process_data_connection, data_socket);
+            
             snprintf(data, data_size, "%s =127,0,0,1,%i,%i\n", "227 Entering Passive Mode", p1, p2);
 //             freeaddrinfo(data_results);
         }
@@ -414,7 +457,7 @@ void check_status(int status, const char *error) {
 }
 
 // Accept connection and spawn new thread
-int begin_connection(int listening_socket) {
+int begin_connection(int listening_socket, void *on_create_function) {
     // Make a new socket specifically for sending/receiving data w this client
     int new_socket;
     
@@ -428,8 +471,8 @@ int begin_connection(int listening_socket) {
     if (new_socket > 0) {
         pthread_t tid;
         NUM_THREADS++;
-        pthread_create(&tid, NULL, &process_connection, &new_socket);
-        printf("\nA client has connected, new thread created. Total threads: %d.\n", NUM_THREADS);
+        pthread_create(&tid, NULL, on_create_function, &new_socket);
+        printf("\nA client has connected (socket %d), new thread created. Total threads: %d.\n", new_socket, NUM_THREADS);
     }
     return new_socket;
 }
