@@ -319,15 +319,22 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
                 char data_over_second_connection[10000];
                 strncpy(data_over_second_connection,"", 1);
                 
-//                 int numCharsAllotted = 1;
                 while (fgets(fileBuf, 1000, fp) != NULL) { // while we haven't reached EOF
-//                     strncat(data_over_second_connection, fileBuf, numCharsAllotted*1000);
                     bytes_data_written = bytes_data_written + snprintf(data_over_second_connection + bytes_data_written, data_size - bytes_data_written, "%s", fileBuf);
-//                     numCharsAllotted++;
                 }
                 printf("%s", data_over_second_connection);
-                        
+                
                 bytes_sent += send(*accept_data_socket, data_over_second_connection, strlen(data_over_second_connection), 0);
+                
+//                 int a;
+//                 char *letter;
+//                 for (a = 0; a < (strlen(data_over_second_connection) + 1); a++) {
+//                     putchar(data_over_second_connection[a]);
+//                     letter = &data_over_second_connection[a];
+//                     putchar(letter);
+//                     bytes_sent += send(*accept_data_socket, letter, 1, 0);
+//                 }
+                
                 close(*accept_data_socket);
                 snprintf(data + bytes_response_code_written, data_size, "226 Transfer complete.\r\n");
                 fclose(fp);
