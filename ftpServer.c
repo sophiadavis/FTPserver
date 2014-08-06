@@ -276,18 +276,18 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             char data_over_second_connection[data_size];
             bytes_response_code_written = snprintf(data, data_size, "%s", "150 Here comes the directory listing. \r\n");
             if (d && *accept_data_socket > 0) {
-              while ((dir = readdir(d)) != NULL) {
-//                 snprintf(data_line, 15, "%s\r\n", dir->d_name);
-//                 printf("%s\n", data_line);
-//                 send(new_socket, &data_line, 20, 0);
+                while ((dir = readdir(d)) != NULL) {
+  //                 snprintf(data_line, 15, "%s\r\n", dir->d_name);
+  //                 printf("%s\n", data_line);
+  //                 send(new_socket, &data_line, 20, 0);
                 
-                bytes_data_written = bytes_data_written + snprintf(data_over_second_connection + bytes_data_written, data_size, "%s \r\n", dir->d_name);
+                    bytes_data_written = bytes_data_written + snprintf(data_over_second_connection + bytes_data_written, data_size - bytes_data_written, "%s \r\n", dir->d_name);
                 
-              }
-              closedir(d);
-              bytes_sent += send(*accept_data_socket, data_over_second_connection, strlen(data_over_second_connection), 0);
-              close(*accept_data_socket);
-              snprintf(data + bytes_response_code_written, data_size, "226 Directory send OK.\r\n");
+                }
+                closedir(d);
+                bytes_sent += send(*accept_data_socket, data_over_second_connection, strlen(data_over_second_connection), 0);
+                close(*accept_data_socket);
+                snprintf(data + bytes_response_code_written, data_size, "226 Directory send OK.\r\n");
             }
             else {
                 snprintf(data, data_size, "%s", "550 NLST error\n");
@@ -306,25 +306,35 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             
             FILE *fp;
             fp = fopen(parsed[1], "r");
-    
-            if (fp == NULL) {
-              fprintf(stderr, "Can't open file!\n");
-              exit(1);
-            }
-    
-            char fileBuf[1000];
-            char myFile[10000];
-            strncpy(myFile,"FILE: \n", 7);
-            int numCharsAllotted = 1;
-            while (fgets(fileBuf, 1000, fp) != NULL) { // while we haven't reached EOF
-                strncat(myFile, fileBuf, numCharsAllotted*1000);
-                numCharsAllotted++;
-            }
-            printf("%s", myFile);
             
-            snprintf(data, data_size, "%s\n", myFile);
-    
-            fclose(fp);
+            int bytes_data_written = 0;
+            int bytes_response_code_written = 0;
+
+            char data_over_second_connection[data_size];
+            bytes_response_code_written = snprintf(data, data_size, "150 Opening ASCII mode data connection for %s (178 bytes). \r\n", parsed[1]);
+            if ((fp != NULL) && *accept_data_socket > 0) {
+              
+              
+                char fileBuf[1000];
+                char data_over_second_connection[10000];
+                strncpy(data_over_second_connection,"", 1);
+                
+//                 int numCharsAllotted = 1;
+                while (fgets(fileBuf, 1000, fp) != NULL) { // while we haven't reached EOF
+//                     strncat(data_over_second_connection, fileBuf, numCharsAllotted*1000);
+                    bytes_data_written = bytes_data_written + snprintf(data_over_second_connection + bytes_data_written, data_size - bytes_data_written, "%s", fileBuf);
+//                     numCharsAllotted++;
+                }
+                printf("%s", data_over_second_connection);
+                        
+                bytes_sent += send(*accept_data_socket, data_over_second_connection, strlen(data_over_second_connection), 0);
+                close(*accept_data_socket);
+                snprintf(data + bytes_response_code_written, data_size, "226 Transfer complete.\r\n");
+                fclose(fp);
+            }
+            else {
+                snprintf(data, data_size, "%s", "550 RETR error\n");
+            }
         }
         else if (strcmp(parsed[0], TYPE) == 0) {
             if (strcmp(parsed[1], "I") == 0) {
