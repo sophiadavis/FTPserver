@@ -275,7 +275,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             d = opendir(".");
             char data_over_second_connection[data_size];
             bytes_response_code_written = snprintf(data, data_size, "%s", "150 Here comes the directory listing. \r\n");
-            if (d) {
+            if (d && *accept_data_socket > 0) {
               while ((dir = readdir(d)) != NULL) {
 //                 snprintf(data_line, 15, "%s\r\n", dir->d_name);
 //                 printf("%s\n", data_line);
@@ -344,7 +344,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         else if (strcmp(parsed[0], PASV) == 0) {
             CURRENT_CONNECTION_PORT++;
             *data_port = CURRENT_CONNECTION_PORT;
-            struct addrinfo *data_results;
+            struct addrinfo *data_results; // TODO free this guy?????
             *listening_data_socket = prepare_socket(*data_port, data_results);
             
             
