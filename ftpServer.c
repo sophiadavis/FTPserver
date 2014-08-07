@@ -20,7 +20,7 @@ void check_status(int status, const char *error);
 int begin_connection(int listening_socket, void *on_create_function);
 unsigned long getFileLength(FILE *fp);
 
-// Commands
+// Commands implemented
 const char *USER = "USER";
 const char *QUIT = "QUIT"; 
 const char *PWD = "PWD";
@@ -31,12 +31,13 @@ const char *TYPE = "TYPE";
 const char *SYST = "SYST";
 const char *FEAT = "FEAT";
 const char *PASV = "PASV";
-        
+       
 int NUM_THREADS = 0;
 int MAIN_PORT = 5000;
 int CURRENT_CONNECTION_PORT = 5000;
 const char *ROOT = "/var/folders/r6/mzb0s9jd1639123lkcsv4mf00000gn/T/server";
 
+// Parameters for sending/receiving with client
 int MAX_NUM_ARGS = 2;
 int MAX_COMMAND_LENGTH = 50;
 int MAX_MSG_LENGTH = 1024 * sizeof(char);
@@ -202,18 +203,44 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
                 snprintf(response, MAX_MSG_LENGTH, "%s", "550 CWD error\n");
             }
         }
+        else if (strcmp(parsed[0], PASV) == 0) {
+            CURRENT_CONNECTION_PORT++;
+            *data_port = CURRENT_CONNECTION_PORT;
+            struct addrinfo *data_results;
+            *listening_data_socket = prepare_socket(*data_port, data_results);
+            
+            // Client expects (a1,a2,a3,a4,p1,p2), where port = p1*256 + p2
+            int p1 = *data_port / 256;
+            int p2 = *data_port % 256;
+            
+            int listen_status = listen(*listening_data_socket, 10);
+            check_status(listen_status, "listen");
+
+            // Accept clients
+            struct sockaddr_storage client;
+            socklen_t addr_size = sizeof(client);
+            
+            snprintf(response, MAX_MSG_LENGTH, "%s =127,0,0,1,%i,%i\n", "227 Entering Passive Mode", p1, p2);
+            bytes_sent += send(new_socket, response, strlen(response), 0);
+            already_sent = 1;
+        
+            *accept_data_socket = accept(*listening_data_socket, (struct sockaddr *) &client, &addr_size);
+            check_status(*accept_data_socket, "accept");
+            
+            freeaddrinfo(data_results);
+        }
         else if (strcmp(parsed[0], NLST) == 0) {
             // Thanks to http://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
-            int dataLength = 0;
-            int responseLength = 0;
+            int data_length = 0;
+            int response_length = 0;
             DIR *d;
             struct dirent *dir;
             d = opendir(".");
             char dirInfo[MAX_MSG_LENGTH];
-            responseLength = snprintf(response, MAX_MSG_LENGTH, "%s", "150 Here comes the directory listing. \r\n");
+            response_length = snprintf(response, MAX_MSG_LENGTH, "%s", "150 Here comes the directory listing. \r\n");
             if (d && *accept_data_socket > 0) {
                 while ((dir = readdir(d)) != NULL) {
-                    dataLength = dataLength + snprintf(dirInfo + dataLength, MAX_MSG_LENGTH - dataLength, "%s \r\n", dir->d_name);
+                    data_length = data_length + snprintf(dirInfo + data_length, MAX_MSG_LENGTH - data_length, "%s \r\n", dir->d_name);
                 }
                 closedir(d);
                 
@@ -222,7 +249,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
                 close(*accept_data_socket);
                 *accept_data_socket = 0;
                 
-                snprintf(response + responseLength, MAX_MSG_LENGTH, "226 Directory send OK.\r\n");
+                snprintf(response + response_length, MAX_MSG_LENGTH, "226 Directory send OK.\r\n");
             }
             else {
                 snprintf(response, MAX_MSG_LENGTH, "%s", "550 NLST error\n");
@@ -233,9 +260,9 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             FILE *fp;
             fp = fopen(parsed[1], "rb");
             
-            int responseLength = 0;
+            int response_length = 0;
 
-            responseLength = snprintf(response, MAX_MSG_LENGTH, "150 Opening binary mode data connection for %s (178 bytes). \r\n", parsed[1]);
+            response_length = snprintf(response, MAX_MSG_LENGTH, "150 Opening binary mode data connection for %s (178 bytes). \r\n", parsed[1]);
             if ((fp != NULL) && *accept_data_socket > 0) {
                               
                 unsigned long fileLength = getFileLength(fp);
@@ -262,7 +289,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
                 close(*accept_data_socket);
                 *accept_data_socket = 0;
                 
-                snprintf(response + responseLength, MAX_MSG_LENGTH, "226 Transfer complete.\r\n");
+                snprintf(response + response_length, MAX_MSG_LENGTH, "226 Transfer complete.\r\n");
                 
             }
             else {
@@ -277,32 +304,6 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         }
         else if (strcmp(parsed[0], FEAT) == 0) {
             snprintf(response, MAX_MSG_LENGTH, "%s", "211 end\n");
-        }
-        else if (strcmp(parsed[0], PASV) == 0) {
-            CURRENT_CONNECTION_PORT++;
-            *data_port = CURRENT_CONNECTION_PORT;
-            struct addrinfo *data_results;
-            *listening_data_socket = prepare_socket(*data_port, data_results);
-            
-            // Client expects (a1,a2,a3,a4,p1,p2), where port = p1*256 + p2
-            int p1 = *data_port / 256;
-            int p2 = *data_port % 256;
-            
-            int listen_status = listen(*listening_data_socket, 10);
-            check_status(listen_status, "listen");
-
-            // Accept clients
-            struct sockaddr_storage client;
-            socklen_t addr_size = sizeof(client);
-            
-            snprintf(response, MAX_MSG_LENGTH, "%s =127,0,0,1,%i,%i\n", "227 Entering Passive Mode", p1, p2);
-            bytes_sent += send(new_socket, response, strlen(response), 0);
-            already_sent = 1;
-        
-            *accept_data_socket = accept(*listening_data_socket, (struct sockaddr *) &client, &addr_size);
-            check_status(*accept_data_socket, "accept");
-            
-            freeaddrinfo(data_results);
         }
         else {
             snprintf(response, MAX_MSG_LENGTH, "%s", "502 Command not implemented.\n");
