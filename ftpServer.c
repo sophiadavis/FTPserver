@@ -12,7 +12,7 @@
 #include <pthread.h>
 
 void* process_control_connection(void *sock);
-int process_request(char *buffer, int new_socket, int bytes_received, int *signed_in, int *data_port, int *listening_data_socket, int *accept_data_socket);
+int process_request(char *buffer, int new_socket, int bytes_received, char *thread_wd, int *signed_in, int *data_port, int *listening_data_socket, int *accept_data_socket);
 int sign_in_thread(char *username);
 int pwd(char *cwd, char *response, size_t cwd_size);
 int prepare_socket(int port, struct addrinfo *results);
@@ -82,6 +82,9 @@ void *process_control_connection(void *sock) {
     int data_port = CURRENT_CONNECTION_PORT;
     int listening_data_socket = 0;
     int accept_data_socket = 0;
+    char thread_wd[1024];
+    snprintf(thread_wd, 3, "%s", "./");
+    printf("thread wd: %s\n", thread_wd);
     
     // Cast void* as int*
     int *new_socket_ptr = (int *) sock;
@@ -106,13 +109,14 @@ void *process_control_connection(void *sock) {
         check_status(bytes_received, "receive");
         
         if (bytes_received > 0) {
-            bytes_sent  = process_request(buffer, new_socket, bytes_received, &signed_in, &data_port, &listening_data_socket, &accept_data_socket);
+            bytes_sent  = process_request(buffer, new_socket, bytes_received, thread_wd, &signed_in, &data_port, &listening_data_socket, &accept_data_socket);
             check_status(bytes_sent, "send");
             *total_bytes_sent += bytes_sent;
         }
         else { // bytes_recv == 0
             close(new_socket);
             printf("Client closed connection.\n");
+            NUM_THREADS--;
             break;
         }
     }
@@ -124,13 +128,14 @@ void *process_control_connection(void *sock) {
 /*    END PROCESS CONTROL CONNECTION    */
 
 // Handles FTP client requests and sends appropriate responses
-int process_request(char *buffer, int new_socket, int bytes_received, int *sign_in_status, int *data_port, int *listening_data_socket, int *accept_data_socket) {
+int process_request(char *buffer, int new_socket, int bytes_received, char *thread_wd, int *sign_in_status, int *data_port, int *listening_data_socket, int *accept_data_socket) {
     char *response = malloc(MAX_MSG_LENGTH);
     memset(response, '\0', MAX_MSG_LENGTH);
     
     // TODO make some of these globals
     int bytes_sent;
     
+    // work around for "PASV"
     int already_sent = 0;
         
     // Assuming all commands contain less than two words (TODO: otherwise, error??)
@@ -178,30 +183,57 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         }
     }
     else if (strcmp(parsed[0], QUIT) == 0) {
-        NUM_THREADS--;
         send(new_socket, "221 \n", 5, 0);
         return 0;
     }
     else if (*sign_in_status == 1) {
         if (strcmp(parsed[0], PWD) == 0) {
-            
-            char *cwd = malloc(MAX_MSG_LENGTH);
-            int pwd_status = pwd(cwd, response, MAX_MSG_LENGTH);
-            free(cwd);
+            printf("thread wd: %s\n", thread_wd);
+            snprintf(response, MAX_MSG_LENGTH, "257 \"%s\" \n", (thread_wd + 1)); // +1 to ignore leading '.'
+//             char *cwd = malloc(MAX_MSG_LENGTH);
+//             int pwd_status = pwd(cwd, response, MAX_MSG_LENGTH);
+//             free(cwd);
         }
         else if (strcmp(parsed[0], CWD) == 0) {
             ///////////////////////////////////////////
             // THREADS SHARE WORKING DIRECTORY, DAMMIT.
             ///////////////////////////////////////////
             
-            int chdir_status = chdir(parsed[1]);
-            if (chdir_status == 0) {
-                snprintf(response, MAX_MSG_LENGTH, "%s", "250 CWD successful\n");
-            }
+//             int chdir_status = chdir(parsed[1]);
+//             if (chdir_status == 0) {
+//                 snprintf(response, MAX_MSG_LENGTH, "%s", "250 CWD successful\n");
+//             }
+//             else {
+//                 perror("CWD");
+//                 snprintf(response, MAX_MSG_LENGTH, "%s", "550 CWD error\n");
+//             }
+
+            struct stat s;
+            char potential_path[1024];
+            strncpy(potential_path, thread_wd, strlen(thread_wd));
+            strncat(potential_path, parsed[1], 1024 - strlen(thread_wd));
+            printf("&&&&&&&&&&&&&&&&&&&&&& Potential path: %s\n", potential_path);
+            
+            // Thanks to http://stackoverflow.com/questions/9314586/c-faster-way-to-check-if-a-directory-exists
+            int error_status = stat(potential_path, &s);
+            printf("error status is %d\n:", error_status);
+            if(error_status == -1) {
+                printf("here -- error 1\n");
+                perror("stat");
+                snprintf(response, MAX_MSG_LENGTH, "%s %s %s", "550 ", parsed[1], " does not exist\n");
+            } 
             else {
-                perror("CWD");
-                snprintf(response, MAX_MSG_LENGTH, "%s", "550 CWD error\n");
+                if(S_ISDIR(s.st_mode)) {
+                    snprintf(thread_wd, 1024, "%s", potential_path);
+                    snprintf(response, MAX_MSG_LENGTH, "%s", "250 CWD successful\n");
+                } else {
+                    printf("here -- error 2\n");
+                    snprintf(response, MAX_MSG_LENGTH, "%s %s %s", "550 ", parsed[1], " is not a directory\n");
+                }
             }
+
+
+
         }
         else if (strcmp(parsed[0], PASV) == 0) {
             CURRENT_CONNECTION_PORT++;
@@ -312,6 +344,8 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     else {
         snprintf(response, MAX_MSG_LENGTH, "%s", "530 User not logged in.\n");
     }
+    
+    // work around for "PASV"
     if (already_sent == 0) {
         bytes_sent = send(new_socket, response, strlen(response), 0);
     }
@@ -332,17 +366,17 @@ int sign_in_thread(char *username) {
 }
 
 // Copies working directory into "data," along with appropriate success code
-int pwd(char *cwd, char *response, size_t cwd_size) {
-    if (getcwd(cwd, cwd_size) != NULL) {
-        snprintf(response, cwd_size, "257 \"%s\" \n", cwd);
-        return 1;
-    }
-    else {
-        perror("getcwd() error");
-        return -1;
-        exit(1);
-    }
-}
+// int pwd(char *cwd, char *response, size_t cwd_size) {
+//     if (getcwd(cwd, cwd_size) != NULL) {
+//         snprintf(response, cwd_size, "257 \"%s\" \n", cwd);
+//         return 1;
+//     }
+//     else {
+//         perror("getcwd() error");
+//         return -1;
+//         exit(1);
+//     }
+// }
 
 int prepare_socket(int port, struct addrinfo *results) {
 
