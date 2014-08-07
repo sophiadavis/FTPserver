@@ -267,15 +267,6 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             else {
                 snprintf(data, data_size, "%s", "550 NLST error\n");
             }
-//             int i;
-//             char data_char[1];
-//             for (i = 0; i < (strlen(data) + 1); i++) {
-//                 snprintf(data_char, 1, "%c", data[i]);
-//                 putchar(data[i]);
-//                 printf("---Sending byte: %c\n", data[i]);
-//                 send(new_socket, &data[i], 1, 0);
-//             }
-//             send(new_socket, &("\r\n"), 1, 0);
         }
         else if (strcmp(parsed[0], RETR) == 0) {
             
