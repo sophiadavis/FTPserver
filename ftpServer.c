@@ -18,6 +18,7 @@ int pwd(char *cwd, char *data, size_t cwd_size);
 int prepare_socket(int port, struct addrinfo *results);
 void check_status(int status, const char *error);
 int begin_connection(int listening_socket, void *on_create_function);
+int getFileLength(FILE *fp);
 
 // Commands
 const char *USER = "USER";
@@ -285,9 +286,13 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             if ((fp != NULL) && *accept_data_socket > 0) {
               
                 char fileBuf[1000];
-                char data_over_second_connection[10000];
+                
+                int fileLength = getFileLength(fp); // Only works for files < 2 Gb
+                
+                char data_over_second_connection[fileLength + 1];
                 strncpy(data_over_second_connection,"", 1);
                 
+                rewind(fp);
                 while (fgets(fileBuf, 1000, fp) != NULL) { // while we haven't reached EOF
                     bytes_data_written = bytes_data_written + snprintf(data_over_second_connection + bytes_data_written, data_size - bytes_data_written, "%s", fileBuf);
                 }
@@ -477,6 +482,12 @@ int begin_connection(int listening_socket, void *on_create_function) {
         printf("\nA client has connected (socket %d), new thread created. Total threads: %d.\n", new_socket, NUM_THREADS);
     }
     return new_socket;
+}
+
+int getFileLength(FILE *fp) {
+    fseek(fp, 0, SEEK_END);
+    int length = ftell(fp);
+    return length;
 }
 
 
