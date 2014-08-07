@@ -195,23 +195,14 @@ int process_request(char *buffer, int new_socket, int bytes_received, char *thre
 //             free(cwd);
         }
         else if (strcmp(parsed[0], CWD) == 0) {
-            ///////////////////////////////////////////
-            // THREADS SHARE WORKING DIRECTORY, DAMMIT.
-            ///////////////////////////////////////////
-            
-//             int chdir_status = chdir(parsed[1]);
-//             if (chdir_status == 0) {
-//                 snprintf(response, MAX_MSG_LENGTH, "%s", "250 CWD successful\n");
-//             }
-//             else {
-//                 perror("CWD");
-//                 snprintf(response, MAX_MSG_LENGTH, "%s", "550 CWD error\n");
-//             }
+//             if (strcmp(parsed[1], 
 
             struct stat s;
             char potential_path[1024];
+            memset(potential_path, '\0', 1024);
             strncpy(potential_path, thread_wd, strlen(thread_wd));
             strncat(potential_path, parsed[1], 1024 - strlen(thread_wd));
+            strncat(potential_path, "/", 2);
             printf("&&&&&&&&&&&&&&&&&&&&&& Potential path: %s\n", potential_path);
             
             // Thanks to http://stackoverflow.com/questions/9314586/c-faster-way-to-check-if-a-directory-exists
@@ -219,8 +210,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, char *thre
             printf("error status is %d\n:", error_status);
             if(error_status == -1) {
                 printf("here -- error 1\n");
-                perror("stat");
-                snprintf(response, MAX_MSG_LENGTH, "%s %s %s", "550 ", parsed[1], " does not exist\n");
+                snprintf(response, MAX_MSG_LENGTH, "%s %s: %s", "550", parsed[1], "No such file or directory\n");
             } 
             else {
                 if(S_ISDIR(s.st_mode)) {
@@ -228,7 +218,8 @@ int process_request(char *buffer, int new_socket, int bytes_received, char *thre
                     snprintf(response, MAX_MSG_LENGTH, "%s", "250 CWD successful\n");
                 } else {
                     printf("here -- error 2\n");
-                    snprintf(response, MAX_MSG_LENGTH, "%s %s %s", "550 ", parsed[1], " is not a directory\n");
+                    // can't just use perror
+                    snprintf(response, MAX_MSG_LENGTH, "%s %s: %s", "550", parsed[1], "Not a directory\n");
                 }
             }
 
@@ -267,7 +258,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, char *thre
             int response_length = 0;
             DIR *d;
             struct dirent *dir;
-            d = opendir(".");
+            d = opendir(thread_wd);
             char dirInfo[MAX_MSG_LENGTH];
             response_length = snprintf(response, MAX_MSG_LENGTH, "%s", "150 Here comes the directory listing. \r\n");
             if (d && *accept_data_socket > 0) {
