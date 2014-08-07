@@ -66,11 +66,10 @@ const char *ROOT = "/var/folders/r6/mzb0s9jd1639123lkcsv4mf00000gn/T/server";
 int main(int argc, char *argv[]){
     
     // Set directory of server
-    int cwd_success = chdir(ROOT);
-    if (cwd_success < 0) {
-        perror("server: CSD");
-        exit(1);
-    }
+    int chdir_status = chdir(ROOT);
+    check_status(chdir_status, "chdir");
+    int chroot_status = chroot(ROOT);
+    check_status(chroot_status, "chroot");
     
     // For storing results from creating socket
     struct addrinfo *results;
