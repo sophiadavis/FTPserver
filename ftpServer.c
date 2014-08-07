@@ -18,7 +18,7 @@ int pwd(char *cwd, char *data, size_t cwd_size);
 int prepare_socket(int port, struct addrinfo *results);
 void check_status(int status, const char *error);
 int begin_connection(int listening_socket, void *on_create_function);
-int getFileLength(FILE *fp);
+unsigned long getFileLength(FILE *fp);
 
 // Commands
 const char *USER = "USER";
@@ -37,6 +37,9 @@ int NUM_THREADS = 0;
 int MAIN_PORT = 5000;
 int CURRENT_CONNECTION_PORT = 5000;
 const char *ROOT = "/var/folders/r6/mzb0s9jd1639123lkcsv4mf00000gn/T/server";
+
+int MAX_NUM_ARGS = 2;
+int MAX_COMMAND_LENGTH = 50;
 
 int main(int argc, char *argv[]){
     
@@ -163,13 +166,14 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     char *data = malloc(data_size);
     memset(data, '\0', data_size);
     
-    int len, bytes_sent, num_args;
+    // TODO make some of these globals
+    int bytes_sent;
     
     int already_sent = 0;
         
     // Assuming all commands contain less than two words (TODO: otherwise, error??)
-    num_args = 2;
-    char parsed[num_args][20];
+    MAX_NUM_ARGS = 2;
+    char parsed[MAX_NUM_ARGS][MAX_COMMAND_LENGTH];
     
     printf("\n------------------------------------------\n");
     printf("\nServer received: %s (%i bytes)\n", buffer, bytes_received);
@@ -179,25 +183,25 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
     int j = 0;
     char * pch;
     pch = strtok(buffer," \t\n\r");
-    while (pch != NULL && j < num_args) {
-        memset(parsed[j], '\0', 20);
-        snprintf(parsed[j], 20, "%s", pch);
+    while (pch != NULL && j < MAX_NUM_ARGS) {
+        memset(parsed[j], '\0', MAX_COMMAND_LENGTH);
+        snprintf(parsed[j], MAX_COMMAND_LENGTH, "%s", pch);
         pch = strtok(NULL, " \t\n\r");
         j++;
     }
     
     int z = 0;
-    while(z < num_args) {
+    while(z < MAX_NUM_ARGS) {
         printf("command %zd is %s\n", z, parsed[z]);
         int a = 0;
-//         for(a = 0; a < 20; a++) {
-//             if (parsed[z][a] == '\0') {
-//                 printf("NULL-");
-//             }
-//             else {
-//               printf("%c-", parsed[z][a]);
-//             }
-//         }
+        for(a = 0; a < MAX_COMMAND_LENGTH; a++) {
+            if (parsed[z][a] == '\0') {
+                printf("NULL-");
+            }
+            else {
+              printf("%c-", parsed[z][a]);
+            }
+        }
         z++;
         printf("\n");
     }
@@ -276,28 +280,53 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
         else if (strcmp(parsed[0], RETR) == 0) {
             
             FILE *fp;
-            fp = fopen(parsed[1], "r");
+            fp = fopen(parsed[1], "rb");
             
             int bytes_data_written = 0;
             int bytes_response_code_written = 0;
 
             char data_over_second_connection[data_size];
-            bytes_response_code_written = snprintf(data, data_size, "150 Opening ASCII mode data connection for %s (178 bytes). \r\n", parsed[1]);
+            bytes_response_code_written = snprintf(data, data_size, "150 Opening binary mode data connection for %s (178 bytes). \r\n", parsed[1]);
             if ((fp != NULL) && *accept_data_socket > 0) {
               
-                char fileBuf[1000];
+//                 char fileBuf[1000];
                 
-                int fileLength = getFileLength(fp); // Only works for files < 2 Gb
+                unsigned long fileLength = getFileLength(fp); // Only works for files < 2 Gb
                 
                 char data_over_second_connection[fileLength + 1];
-                strncpy(data_over_second_connection,"", 1);
+//                 strncpy(data_over_second_connection,"", 1);
                 
                 rewind(fp);
-                while (fgets(fileBuf, 1000, fp) != NULL) { // while we haven't reached EOF
-                    bytes_data_written = bytes_data_written + snprintf(data_over_second_connection + bytes_data_written, data_size - bytes_data_written, "%s", fileBuf);
+//                 while (fgets(fileBuf, 1000, fp) != NULL) { // while we haven't reached EOF
+//                     bytes_data_written = bytes_data_written + snprintf(data_over_second_connection + bytes_data_written, data_size - bytes_data_written, "%s", fileBuf);
+//                 }
+
+
+                unsigned char fileBuffer[fileLength + 1];
+//                 buffer = (unsigned char *)malloc(fileLen);
+                if (!fileBuffer) {
+                    fprintf(stderr, "Memory error!");
+                    fclose(fp);
+                    return 1;
                 }
+
+                fread(fileBuffer, sizeof(unsigned char), fileLength, fp);
+                
+                int i;
+                for (i = 0; i < (fileLength + 1); i++) {
+                    bytes_sent += send(*accept_data_socket, (const void *) &fileBuffer[i], 1, 0);
+                }
+//                 bytes_sent += send(*accept_data_socket, fileBuffer, fileLength, 0);
+
+
+
+
+
+
+
                 fclose(fp);
-                printf("%s", data_over_second_connection);
+//                 printf("%s", data_over_second_connection);
+                printf("%s", fileBuffer);
                 
                 
                 
@@ -311,7 +340,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
 //                 }
 
                 // Send directory information immediately over data socket, then close connection
-                bytes_sent += send(*accept_data_socket, data_over_second_connection, strlen(data_over_second_connection), 0);
+//                 bytes_sent += send(*accept_data_socket, data_over_second_connection, strlen(data_over_second_connection), 0);
                 close(*accept_data_socket);
                 *accept_data_socket = 0;
                 
@@ -484,9 +513,9 @@ int begin_connection(int listening_socket, void *on_create_function) {
     return new_socket;
 }
 
-int getFileLength(FILE *fp) {
+unsigned long getFileLength(FILE *fp) {
     fseek(fp, 0, SEEK_END);
-    int length = ftell(fp);
+    unsigned long length = ftell(fp);
     return length;
 }
 
