@@ -25,9 +25,7 @@ int open_and_bind_socket_on_port(int port) {
     freeaddrinfo(results);
     
     // Allow reuse of port -- from Beej
-    int yes = 1;
-    int sockopt_status = setsockopt(listening_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-    check_status(sockopt_status, "setsockopt");
+    allow_reuse_of_port(listening_socket);
     
     listening_socket = bind_with_error_checking(listening_socket, address_in);
     
@@ -63,6 +61,12 @@ struct addrinfo set_socket_address_information(int port, struct sockaddr_in addr
     address.ai_flags = AI_PASSIVE; // fills in IP automatically
     
     return address;
+}
+
+void allow_reuse_of_port(int listening_socket) {
+    int yes = 1;
+    int sockopt_status = setsockopt(listening_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+    check_status(sockopt_status, "setsockopt");
 }
 
 // Accept connection and spawn new thread
