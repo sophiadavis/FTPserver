@@ -3,29 +3,13 @@
 #include "socketConnection.h"
 
 int open_and_bind_socket_on_port(int port) {
-    struct addrinfo *results;
-    int listening_socket;
     
     struct sockaddr_in address_in = use_ipv4_address(port);
     struct addrinfo address = set_socket_address_information(port, address_in);
-    
-    char port_str[5];
-    sprintf(port_str, "%d", port);
      
-    int status = getaddrinfo(NULL, port_str, &address, &results); // results stored in results
-    char message[50];
-    sprintf(message, "getaddrinfo error: %s\n", gai_strerror(status));
-    check_status(status, message);
+    int listening_socket = create_socket_with_port_and_address(port, address);
     
-    // Create socket
-    listening_socket = socket(results->ai_family, results->ai_socktype, results->ai_protocol); 
-    if (listening_socket > 0) {
-        printf("Socket created, listening on port %s.\n", port_str);
-    }
-    freeaddrinfo(results);
-    
-    // Allow reuse of port -- from Beej
-    allow_reuse_of_port(listening_socket);
+    set_reuse_port_option(listening_socket);
     
     listening_socket = bind_with_error_checking(listening_socket, address_in);
     
@@ -63,7 +47,31 @@ struct addrinfo set_socket_address_information(int port, struct sockaddr_in addr
     return address;
 }
 
-void allow_reuse_of_port(int listening_socket) {
+int create_socket_with_port_and_address(int port, struct addrinfo address) {
+    
+    char port_str[7];
+    sprintf(port_str, "%d", port);
+    
+    struct addrinfo *results;
+    
+    int status = getaddrinfo(NULL, port_str, &address, &results); // results stored in results
+    
+    char message[50];
+    sprintf(message, "getaddrinfo error: %s\n", gai_strerror(status));
+    
+    check_status(status, message);
+    
+    int listening_socket = socket(results->ai_family, results->ai_socktype, results->ai_protocol); 
+    if (listening_socket > 0) {
+        printf("Socket created, listening on port %s.\n", port_str);
+    }
+    
+    freeaddrinfo(results);
+    
+    return listening_socket;
+}
+
+void set_reuse_port_option(int listening_socket) {
     int yes = 1;
     int sockopt_status = setsockopt(listening_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
     check_status(sockopt_status, "setsockopt");
