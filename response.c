@@ -41,6 +41,8 @@ void *process_control_connection(void *sock) {
     int bytes_sent = send(new_socket, initial_message, strlen(initial_message), 0);
     *total_bytes_sent = bytes_sent;
     
+    printf("initial message sent\n");
+    
     while (1) {
         memset(buffer, '\0', MAX_MSG_LENGTH);
         bytes_received = recv(new_socket, buffer, MAX_MSG_LENGTH, 0);

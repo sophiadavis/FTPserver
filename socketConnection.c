@@ -17,7 +17,7 @@ int open_and_bind_socket_on_port(int port) {
 }
 
 int bind_with_error_checking(int listening_socket, struct sockaddr_in address_in) {
-    // Bind socket to address
+    
     // socket id, *sockaddr struct w address info, length (in bytes) of address
     int bind_status = bind(listening_socket, (struct sockaddr *) &address_in, sizeof(address_in));                                                          
     check_status(bind_status, "bind");
@@ -54,7 +54,7 @@ int create_socket_with_port_and_address(int port, struct addrinfo address) {
     
     struct addrinfo *results;
     
-    int status = getaddrinfo(NULL, port_str, &address, &results); // results stored in results
+    int status = getaddrinfo(NULL, port_str, &address, &results);
     
     char message[50];
     sprintf(message, "getaddrinfo error: %s\n", gai_strerror(status));
@@ -77,8 +77,21 @@ void set_reuse_port_option(int listening_socket) {
     check_status(sockopt_status, "setsockopt");
 }
 
+void infinite_listen_on_socket(int listening_socket, int backlog) {
+    int new_socket;
+    while (1) {
+    
+        int listen_status = listen(listening_socket, backlog);
+        check_status(listen_status, "listen");
+    
+        new_socket = open_socket_for_incoming_connection(listening_socket);
+        spawn_thread(new_socket, &process_control_connection);
+    }
+}
+
 // Accept connection and spawn new thread
-int begin_connection(int listening_socket, void *on_create_function) {
+int open_socket_for_incoming_connection(int listening_socket) {
+    
     // Make a new socket specifically for sending/receiving data w this client
     int new_socket;
     
@@ -89,11 +102,13 @@ int begin_connection(int listening_socket, void *on_create_function) {
     new_socket = accept(listening_socket, (struct sockaddr *) &client, &addr_size);
     check_status(new_socket, "accept");
 
-    if (new_socket > 0) {
-        pthread_t tid;
-        NUM_THREADS++;
-        pthread_create(&tid, NULL, on_create_function, &new_socket);
-        printf("\nA client has connected (socket %d), new thread created. Total threads: %d.\n", new_socket, NUM_THREADS);
-    }
     return new_socket;
+}
+
+void spawn_thread(int new_socket, void *on_create_function) {
+    pid_t pID;
+    pthread_t tid;
+    NUM_THREADS++;
+    pthread_create(&tid, NULL, on_create_function, &new_socket);
+    printf("\nA client has connected (socket %d), new thread created. Total threads: %d.\n", new_socket, NUM_THREADS);
 }

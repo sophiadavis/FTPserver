@@ -16,7 +16,9 @@ struct addrinfo set_socket_address_information(int port, struct sockaddr_in addr
 int create_socket_with_port_and_address(int port, struct addrinfo address);
 void set_reuse_port_option(int listening_socket);
 int bind_with_error_checking(int listening_socket, struct sockaddr_in address_in);
-int begin_connection(int listening_socket, void *on_create_function);
+int open_socket_for_incoming_connection(int listening_socket);
+void spawn_thread(int new_socket, void *on_create_function);
+void infinite_listen_on_socket(int listening_socket, int backlog);
 
 extern int NUM_THREADS; // want to get this out of here
 extern int MAIN_PORT;
