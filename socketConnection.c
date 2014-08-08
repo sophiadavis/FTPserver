@@ -6,18 +6,8 @@ int open_and_bind_socket_on_port(int port) {
     struct addrinfo *results;
     int listening_socket;
     
-    // Socket address information:
-    struct sockaddr_in address_in; // sockaddr_in contains IPv4 information 
-    address_in.sin_family = AF_INET; // IPv4
-    address_in.sin_port = htons(port);
-    address_in.sin_addr.s_addr = INADDR_ANY; // expects 4-byte IP address (INADDR_ANY = use my IPv4 address)
-        
-    struct addrinfo address; // addrinfo contains info about the socket
-    memset(&address, 0, sizeof(address));
-    address.ai_socktype = SOCK_STREAM;
-    address.ai_protocol = 0; // 0 = choose correct protocol for stream vs datagram
-    address.ai_addr = (struct sockaddr *) &address_in;
-    address.ai_flags = AI_PASSIVE; // fills in IP automatically
+    struct sockaddr_in address_in = use_ipv4_address(port);
+    struct addrinfo address = set_socket_address_information(port, address_in);
     
     char port_str[5];
     sprintf(port_str, "%d", port);
@@ -52,6 +42,27 @@ int bind_with_error_checking(int listening_socket, struct sockaddr_in address_in
     printf("Binding socket...\n");
     
     return listening_socket;
+}
+
+struct sockaddr_in use_ipv4_address(int port) {
+    struct sockaddr_in address_in; // sockaddr_in sets IPv4 information 
+    address_in.sin_family = AF_INET; // IPv4
+    address_in.sin_port = htons(port);
+    address_in.sin_addr.s_addr = INADDR_ANY; // expects 4-byte IP address (INADDR_ANY = use my IPv4 address)
+    
+    return address_in;
+}
+
+struct addrinfo set_socket_address_information(int port, struct sockaddr_in address_in) {
+        
+    struct addrinfo address; // addrinfo contains info about the socket
+    memset(&address, 0, sizeof(address));
+    address.ai_socktype = SOCK_STREAM;
+    address.ai_protocol = 0; // 0 = choose correct protocol for stream vs datagram
+    address.ai_addr = (struct sockaddr *) &address_in;
+    address.ai_flags = AI_PASSIVE; // fills in IP automatically
+    
+    return address;
 }
 
 // Accept connection and spawn new thread
