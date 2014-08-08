@@ -11,6 +11,7 @@
 #include <pthread.h>
 
 void* process_control_connection(void *sock);
+int send_formatted_response_to_socket(int new_socket, int code, const char* message);
 int process_request(char *buffer, int new_socket, int bytes_received, int *signed_in, int *data_port, int *listening_data_socket, int *accept_data_socket);
 int sign_in_thread(char *username);
 int pwd(char *cwd, char *response, size_t cwd_size);

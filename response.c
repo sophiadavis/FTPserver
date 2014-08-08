@@ -35,14 +35,9 @@ void *process_control_connection(void *sock) {
     char *buffer = malloc(MAX_MSG_LENGTH);
     int bytes_received;
     
-    // Send message initializing connection
-    char *initial_message;
-    initial_message = "220 Sophia's FTP server (Version 0.0) ready.\n";
-    int bytes_sent = send(new_socket, initial_message, strlen(initial_message), 0);
+    int bytes_sent = send_formatted_response_to_socket(new_socket, 220, "Sophia's FTP server (Version 0.0) ready.");
     *total_bytes_sent = bytes_sent;
-    
-    printf("initial message sent\n");
-    
+        
     while (1) {
         memset(buffer, '\0', MAX_MSG_LENGTH);
         bytes_received = recv(new_socket, buffer, MAX_MSG_LENGTH, 0);
@@ -70,6 +65,7 @@ void *process_control_connection(void *sock) {
 int process_request(char *buffer, int new_socket, int bytes_received, int *sign_in_status, int *data_port, int *listening_data_socket, int *accept_data_socket) {
     char *response = malloc(MAX_MSG_LENGTH);
     memset(response, '\0', MAX_MSG_LENGTH);
+    
     
     // TODO make some of these globals
     int bytes_sent;
@@ -279,6 +275,21 @@ int sign_in_thread(char *username) {
         return -1;
     }
 }
+
+int send_formatted_response_to_socket(int new_socket, int code, const char* response) {
+    char *message = malloc(MAX_MSG_LENGTH);
+    memset(message, '\0', MAX_MSG_LENGTH);
+    
+    snprintf(message, MAX_MSG_LENGTH, "%d %s\n", code, response);
+    
+    int bytes_sent = send(new_socket, message, strlen(message), 0);
+    
+    printf("Data sent: %s\n", message);
+    free(message);
+    
+    return bytes_sent;
+}
+    
 
 // Copies working directory into "data," along with appropriate success code
 int pwd(char *cwd, char *response, size_t cwd_size) {
