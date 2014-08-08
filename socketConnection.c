@@ -2,8 +2,8 @@
 #include "response.h"
 #include "socketConnection.h"
 
-int prepare_socket(int port, struct addrinfo *results) {
-
+int open_and_bind_socket_on_port(int port) {
+    struct addrinfo *results;
     int listening_socket;
     
     // Socket address information:
@@ -32,12 +32,19 @@ int prepare_socket(int port, struct addrinfo *results) {
     if (listening_socket > 0) {
         printf("Socket created, listening on port %s.\n", port_str);
     }
+    freeaddrinfo(results);
     
     // Allow reuse of port -- from Beej
     int yes = 1;
     int sockopt_status = setsockopt(listening_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
     check_status(sockopt_status, "setsockopt");
     
+    listening_socket = bind_with_error_checking(listening_socket, address_in);
+    
+    return listening_socket;
+}
+
+int bind_with_error_checking(int listening_socket, struct sockaddr_in address_in) {
     // Bind socket to address
     // socket id, *sockaddr struct w address info, length (in bytes) of address
     int bind_status = bind(listening_socket, (struct sockaddr *) &address_in, sizeof(address_in));                                                          

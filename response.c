@@ -148,7 +148,7 @@ int process_request(char *buffer, int new_socket, int bytes_received, int *sign_
             CURRENT_CONNECTION_PORT++;
             *data_port = CURRENT_CONNECTION_PORT;
             struct addrinfo *data_results;
-            *listening_data_socket = prepare_socket(*data_port, data_results);
+            *listening_data_socket = open_and_bind_socket_on_port(*data_port);
             
             // Client expects (a1,a2,a3,a4,p1,p2), where port = p1*256 + p2
             int p1 = *data_port / 256;

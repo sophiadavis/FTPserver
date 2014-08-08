@@ -10,7 +10,8 @@
 #include <dirent.h>
 #include <pthread.h>
 
-int prepare_socket(int port, struct addrinfo *results);
+int open_and_bind_socket_on_port(int port);
+int bind_with_error_checking(int listening_socket, struct sockaddr_in address_in);
 int begin_connection(int listening_socket, void *on_create_function);
 
 extern int NUM_THREADS; // want to get this out of here

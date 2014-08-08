@@ -16,11 +16,12 @@ int main(int argc, char *argv[]){
 
     set_root(ROOT);
     
-    // For storing results from creating socket
-    struct addrinfo *results;
+// For storing results from creating socket
+//     struct addrinfo *results;
     
     // Create and bind socket to specified port
-    int listening_socket = prepare_socket(MAIN_PORT, results);
+//     int listening_socket = prepare_socket(MAIN_PORT, results);
+    int listening_socket = open_and_bind_socket_on_port(MAIN_PORT);
     
     // Listen for connections
     pid_t pID;
@@ -33,7 +34,7 @@ int main(int argc, char *argv[]){
         // Accept clients, spawn new thread for each connection
         new_socket = begin_connection(listening_socket, &process_control_connection);
     }
-    freeaddrinfo(results);
+//     freeaddrinfo(results);
     close(new_socket);
     close(listening_socket);
     return 0;
