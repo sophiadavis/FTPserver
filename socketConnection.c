@@ -75,6 +75,7 @@ void set_reuse_port_option(int listening_socket) {
     int yes = 1;
     int sockopt_status = setsockopt(listening_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
     check_status(sockopt_status, "setsockopt");
+    printf("SOCKOPT SET!!!!\n");
 }
 
 void infinite_listen_on_socket(int listening_socket, int backlog) {
