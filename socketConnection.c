@@ -1,6 +1,5 @@
-#include "ftpServer.h"
-#include "response.h"
 #include "socketConnection.h"
+#include "response.h"
 
 int open_and_bind_socket_on_port(int port) {
     
@@ -9,7 +8,7 @@ int open_and_bind_socket_on_port(int port) {
      
     int listening_socket = create_socket_with_port_and_address(port, address);
     
-    set_reuse_port_option(listening_socket);
+    set_reuse_option_on_port(listening_socket);
     
     listening_socket = bind_with_error_checking(listening_socket, address_in);
     
@@ -18,7 +17,6 @@ int open_and_bind_socket_on_port(int port) {
 
 int bind_with_error_checking(int listening_socket, struct sockaddr_in address_in) {
     
-    // socket id, *sockaddr struct w address info, length (in bytes) of address
     int bind_status = bind(listening_socket, (struct sockaddr *) &address_in, sizeof(address_in));                                                          
     check_status(bind_status, "bind");
     printf("Binding socket...\n");
@@ -55,10 +53,8 @@ int create_socket_with_port_and_address(int port, struct addrinfo address) {
     struct addrinfo *results;
     
     int status = getaddrinfo(NULL, port_str, &address, &results);
-    
     char message[50];
     sprintf(message, "getaddrinfo error: %s\n", gai_strerror(status));
-    
     check_status(status, message);
     
     int listening_socket = socket(results->ai_family, results->ai_socktype, results->ai_protocol); 
@@ -71,17 +67,15 @@ int create_socket_with_port_and_address(int port, struct addrinfo address) {
     return listening_socket;
 }
 
-void set_reuse_port_option(int listening_socket) {
+void set_reuse_option_on_port(int listening_socket) {
     int yes = 1;
     int sockopt_status = setsockopt(listening_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
     check_status(sockopt_status, "setsockopt");
-    printf("SOCKOPT SET!!!!\n");
 }
 
 void infinite_listen_on_socket(int listening_socket, int backlog) {
     int new_socket;
     while (1) {
-    
         int listen_status = listen(listening_socket, backlog);
         check_status(listen_status, "listen");
     
@@ -90,10 +84,7 @@ void infinite_listen_on_socket(int listening_socket, int backlog) {
     }
 }
 
-// Accept connection and spawn new thread
 int open_socket_for_incoming_connection(int listening_socket) {
-    
-    // Make a new socket specifically for sending/receiving data w this client
     int new_socket;
     
     // Info about incoming connection goes into sockaddr_storage struct 

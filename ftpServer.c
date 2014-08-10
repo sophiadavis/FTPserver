@@ -35,6 +35,7 @@ void check_status(int status, const char *error) {
     }
 }
 
+// Set chroot jail for server
 void set_root(const char* path) {
     int chdir_status = chdir(path);
     check_status(chdir_status, "chdir");
