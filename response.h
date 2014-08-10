@@ -12,13 +12,17 @@ typedef struct connection {
 } Connection;
 
 void* process_control_connection(void *sock);
-int send_formatted_response_to_socket(int new_socket, int code, const char* message);
+
+
+int send_formatted_response_to_client(Connection* client, int code, const char* message);
+int send_data_to_client(Connection* client, unsigned char* data, int data_size);
+
 int process_request(char *buffer, Connection* client, int bytes_received);
 int sign_in_client(const char *username);
 int pwd(char *cwd, char *response, size_t cwd_size);
 unsigned long getFileLength(FILE *fp);
 int translate_command(const char* command);
-int send_data(Connection* client, unsigned char* data, int data_size);
+
 
 int process_user_command(Connection* client, const char* username);
 int process_pwd_command(Connection* client);

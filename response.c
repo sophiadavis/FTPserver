@@ -72,7 +72,7 @@ void *process_control_connection(void *sock) {
     // Prepare to send and receive data
     char *buffer = malloc(MAX_MSG_LENGTH);
     
-    int bytes_sent = send_formatted_response_to_socket(client.main_socket, 220, "Sophia's FTP server (Version 0.0) ready.");
+    int bytes_sent = send_formatted_response_to_client(&client, 220, "Sophia's FTP server (Version 0.0) ready.");
     client.total_bytes_sent = bytes_sent;
     
     int bytes_received; 
@@ -165,24 +165,24 @@ int process_request(char *buffer, Connection* client, int bytes_received) {
                 break;
         
             case TYPE:
-                bytes_sent += send_formatted_response_to_socket(client->main_socket, 200, "Using ASCII mode for directory listings and binary mode to transfer files.");
+                bytes_sent += send_formatted_response_to_client(client, 200, "Using ASCII mode for directory listings and binary mode to transfer files.");
                 break;
             
             case SYST:
-                bytes_sent += send_formatted_response_to_socket(client->main_socket, 215, "MACOS Sophia's Server.");
+                bytes_sent += send_formatted_response_to_client(client, 215, "MACOS Sophia's Server.");
                 break;
 
             case FEAT:
-                bytes_sent += send_formatted_response_to_socket(client->main_socket, 211, "end");
+                bytes_sent += send_formatted_response_to_client(client, 211, "end");
                 break;
         
             case QUIT:
                 NUM_THREADS--;
-                bytes_sent += send_formatted_response_to_socket(client->main_socket, 221, "Goodbye.");
+                bytes_sent += send_formatted_response_to_client(client, 221, "Goodbye.");
                 break;
         
             default:
-                bytes_sent += send_formatted_response_to_socket(client->main_socket, 502, "Command not implemented.");
+                bytes_sent += send_formatted_response_to_client(client, 502, "Command not implemented.");
                 break;
         }
     }
@@ -193,10 +193,10 @@ int process_request(char *buffer, Connection* client, int bytes_received) {
                 break;
             case QUIT:
                 NUM_THREADS--;
-                bytes_sent += send_formatted_response_to_socket(client->main_socket, 221, "Goodbye.");
+                bytes_sent += send_formatted_response_to_client(client, 221, "Goodbye.");
                 break;
             default:
-                bytes_sent += send_formatted_response_to_socket(client->main_socket, 530, "User not logged in.");
+                bytes_sent += send_formatted_response_to_client(client, 530, "User not logged in.");
                 break;
         }
     }
@@ -212,13 +212,13 @@ int sign_in_client(const char *username) {
     }
 }
 
-int send_formatted_response_to_socket(int socket, int code, const char* response) {
+int send_formatted_response_to_client(Connection* client, int code, const char* response) {
     char *message = malloc(MAX_MSG_LENGTH);
     memset(message, '\0', MAX_MSG_LENGTH);
     
     snprintf(message, MAX_MSG_LENGTH, "%d %s\r\n", code, response);
     
-    int bytes_sent = send(socket, message, strlen(message), 0);
+    int bytes_sent = send(client->main_socket, message, strlen(message), 0);
     
     printf("Data sent: %s\n", message);
     free(message);
@@ -238,12 +238,11 @@ int process_user_command(Connection* client, const char* username) {
     client->sign_in_status = sign_in_client(username);
     
     if (client->sign_in_status == 1) {
-        bytes_sent += send_formatted_response_to_socket(client->main_socket, 230, "User signed in. Using binary mode to transfer files.");
+        bytes_sent += send_formatted_response_to_client(client, 230, "User signed in. Using binary mode to transfer files.");
     }
     else {
-        bytes_sent += send_formatted_response_to_socket(client->main_socket, 530, "Sign in failure");
+        bytes_sent += send_formatted_response_to_client(client, 530, "Sign in failure");
     }
-    
     return bytes_sent;
 }
 
@@ -260,7 +259,7 @@ int process_pwd_command(Connection* client) {
         exit(1);
     }
 
-    bytes_sent += send_formatted_response_to_socket(client->main_socket, 257, response);
+    bytes_sent += send_formatted_response_to_client(client, 257, response);
     free(cwd);
     free(response);
     return bytes_sent;
@@ -275,13 +274,12 @@ int process_cwd_command(Connection* client, const char* dir) {
 
     int chdir_status = chdir(dir);
     if (chdir_status == 0) {
-        bytes_sent += send_formatted_response_to_socket(client->main_socket, 250, "CWD successful.");
+        bytes_sent += send_formatted_response_to_client(client, 250, "CWD successful.");
     }
     else {
         perror("CWD");
-        bytes_sent += send_formatted_response_to_socket(client->main_socket, 550, "CWD error.");
+        bytes_sent += send_formatted_response_to_client(client, 550, "CWD error.");
     }
-    
     return bytes_sent;
 }
 
@@ -303,7 +301,7 @@ int process_pasv_command(Connection* client) {
 
     char *response = malloc(MAX_MSG_LENGTH);
     snprintf(response, MAX_MSG_LENGTH, "%s =127,0,0,1,%i,%i", "Entering Passive Mode", p1, p2);
-    bytes_sent += send_formatted_response_to_socket(client->main_socket, 227, response);
+    bytes_sent += send_formatted_response_to_client(client, 227, response);
 
     free(response);
 
@@ -327,12 +325,11 @@ int process_nlst_command(Connection* client) {
         }
         closedir(d);
         
-        bytes_sent += send_data(client, (unsigned char *) dirInfo, strlen(dirInfo));
+        bytes_sent += send_data_to_client(client, (unsigned char *) dirInfo, strlen(dirInfo));
     }
     else {
-        bytes_sent += send_formatted_response_to_socket(client->main_socket, 550, "NLST error.");
+        bytes_sent += send_formatted_response_to_client(client, 550, "NLST error.");
     }
-    
     return bytes_sent;
 }
 
@@ -341,7 +338,6 @@ int process_retr_command(Connection* client, const char* file) {
 
     FILE *fp;
     fp = fopen(file, "rb");
-
     if ((fp != NULL) && client->accept_data_socket > 0) {
               
         unsigned long fileLength = getFileLength(fp);
@@ -350,25 +346,23 @@ int process_retr_command(Connection* client, const char* file) {
         if (!fileBuffer) {
             fprintf(stderr, "Memory error!");
             fclose(fp);
-            bytes_sent += send_formatted_response_to_socket(client->main_socket, 550, "RETR error.");
+            bytes_sent += send_formatted_response_to_client(client, 550, "RETR error.");
             return(bytes_sent);
         }
-
         fread(fileBuffer, sizeof(unsigned char), fileLength, fp);
         fclose(fp);
         
-        bytes_sent += send_data(client, fileBuffer, fileLength);
+        bytes_sent += send_data_to_client(client, fileBuffer, fileLength);
     }
     else {
-        bytes_sent += send_formatted_response_to_socket(client->main_socket, 550, "RETR error.");
+        bytes_sent += send_formatted_response_to_client(client, 550, "RETR error.");
     }
-    
     return bytes_sent;
 }
 
-int send_data(Connection* client, unsigned char* data, int data_size) {
+int send_data_to_client(Connection* client, unsigned char* data, int data_size) {
     int bytes_sent = 0;
-    bytes_sent += send_formatted_response_to_socket(client->main_socket, 150, "Using binary mode for data connection.");
+    bytes_sent += send_formatted_response_to_client(client, 150, "Using binary mode for data connection.");
     
     // Send file byte-by-byte over data socket,
     int i;
@@ -381,7 +375,7 @@ int send_data(Connection* client, unsigned char* data, int data_size) {
     client->accept_data_socket = 0;
     client->listening_data_socket = 0;
 
-    bytes_sent += send_formatted_response_to_socket(client->main_socket, 226, "Transfer complete.");
+    bytes_sent += send_formatted_response_to_client(client, 226, "Transfer complete.");
     
     return(bytes_sent);
 }
