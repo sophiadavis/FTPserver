@@ -52,7 +52,6 @@ int translate_command(const char* command) {
     return int_command;
 }
 
-
 // Executed by new thread when server accepts new connection
 // Receives client requests, calls process_request to parse request and send appropriate response
 void *process_control_connection(void *sock) {
@@ -117,22 +116,6 @@ int process_request(char *buffer, Connection* client, int bytes_received) {
         snprintf(parsed[j], MAX_COMMAND_LENGTH, "%s", pch);
         pch = strtok(NULL, " \t\n\r");
         j++;
-    }
-    
-    int z = 0;
-    while(z < MAX_NUM_ARGS) {
-        printf("command %zd is %s\n", z, parsed[z]);
-        int a = 0;
-        for(a = 0; a < MAX_COMMAND_LENGTH; a++) {
-            if (parsed[z][a] == '\0') {
-                printf("NULL-");
-            }
-            else {
-              printf("%c-", parsed[z][a]);
-            }
-        }
-        z++;
-        printf("\n");
     }
     
     int command = translate_command(parsed[0]);
@@ -203,15 +186,6 @@ int process_request(char *buffer, Connection* client, int bytes_received) {
     return bytes_sent;     
 } /*    END PROCESS REQUEST    */
 
-int sign_in_client(const char *username) {
-    if (strcmp(username, "anonymous") == 0) {
-        return 1;
-    }
-    else {
-        return -1;
-    }
-}
-
 int send_formatted_response_to_client(Connection* client, int code, const char* response) {
     char *message = malloc(MAX_MSG_LENGTH);
     memset(message, '\0', MAX_MSG_LENGTH);
@@ -225,11 +199,24 @@ int send_formatted_response_to_client(Connection* client, int code, const char* 
     return bytes_sent;
 }
 
-unsigned long getFileLength(FILE *fp) {
-    fseek(fp, 0, SEEK_END);
-    unsigned long length = ftell(fp);
-    rewind(fp);
-    return length;
+int send_data_to_client(Connection* client, unsigned char* data, int data_size) {
+    int bytes_sent = 0;
+    bytes_sent += send_formatted_response_to_client(client, 150, "Using binary mode for data connection.");
+    
+    // Send file byte-by-byte over data socket,
+    int i;
+    for (i = 0; i < (data_size + 1); i++) {
+        bytes_sent += send(client->accept_data_socket, (const void *) &data[i], 1, 0);
+    }
+
+    // Data has been sent, now close connection
+    close(client->accept_data_socket);
+    client->accept_data_socket = 0;
+    client->listening_data_socket = 0;
+
+    bytes_sent += send_formatted_response_to_client(client, 226, "Transfer complete.");
+    
+    return(bytes_sent);
 }
 
 int process_user_command(Connection* client, const char* username) {
@@ -244,6 +231,15 @@ int process_user_command(Connection* client, const char* username) {
         bytes_sent += send_formatted_response_to_client(client, 530, "Sign in failure");
     }
     return bytes_sent;
+}
+
+int sign_in_client(const char *username) {
+    if (strcmp(username, "anonymous") == 0) {
+        return 1;
+    }
+    else {
+        return -1;
+    }
 }
 
 int process_pwd_command(Connection* client) {
@@ -360,22 +356,10 @@ int process_retr_command(Connection* client, const char* file) {
     return bytes_sent;
 }
 
-int send_data_to_client(Connection* client, unsigned char* data, int data_size) {
-    int bytes_sent = 0;
-    bytes_sent += send_formatted_response_to_client(client, 150, "Using binary mode for data connection.");
-    
-    // Send file byte-by-byte over data socket,
-    int i;
-    for (i = 0; i < (data_size + 1); i++) {
-        bytes_sent += send(client->accept_data_socket, (const void *) &data[i], 1, 0);
-    }
-
-    // Data has been sent, now close connection
-    close(client->accept_data_socket);
-    client->accept_data_socket = 0;
-    client->listening_data_socket = 0;
-
-    bytes_sent += send_formatted_response_to_client(client, 226, "Transfer complete.");
-    
-    return(bytes_sent);
+unsigned long getFileLength(FILE *fp) {
+    fseek(fp, 0, SEEK_END);
+    unsigned long length = ftell(fp);
+    rewind(fp);
+    return length;
 }
+
