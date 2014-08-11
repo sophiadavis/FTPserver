@@ -71,10 +71,8 @@ void *process_control_connection(void *sock) {
     client.accept_data_socket = 0;
     
     // Cast void* as int*
-    printf("Client's socket fd is %d\n", *(int *) sock);
     int *new_socket_ptr = (int *) sock;
     client.main_socket = *new_socket_ptr;
-    printf("Client's socket fd is %d\n", client.main_socket);
         
     // Prepare to send and receive data
     char *buffer = malloc(MAX_MSG_LENGTH);
@@ -100,7 +98,9 @@ void *process_control_connection(void *sock) {
         }
     }
     printf("Thread closed. %d total bytes sent. Threads still active: %d.\n", client.total_bytes_sent, NUM_THREADS);
+    
     free(buffer);
+    free(new_socket_ptr);
     pthread_exit((void *) &(client.total_bytes_sent));
 } /*    END PROCESS CONTROL CONNECTION    */
 

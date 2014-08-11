@@ -21,6 +21,6 @@ extern int MAX_NUM_ARGS;
 extern int MAX_COMMAND_LENGTH;
 extern int MAX_MSG_LENGTH;
 
-void spawn_thread(int new_socket, void *on_create_function);
+void spawn_thread(int* new_socket, void *on_create_function);
 void check_status(int status, const char *error);
 void set_root(const char* path);

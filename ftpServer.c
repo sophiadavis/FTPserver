@@ -24,12 +24,13 @@ int main(int argc, char *argv[]){
     
     int listening_socket = open_and_bind_socket_on_port(MAIN_PORT);
     
-    int new_socket;
+    int* new_socket;
     while (1) {
         int listen_status = listen(listening_socket, BACKLOG);
         check_status(listen_status, "listen");
     
-        new_socket = open_socket_for_incoming_connection(listening_socket);
+        new_socket = malloc(sizeof(int));
+        *new_socket = open_socket_for_incoming_connection(listening_socket);
         spawn_thread(new_socket, &process_control_connection);
     }
 
@@ -37,12 +38,12 @@ int main(int argc, char *argv[]){
     return 0;
 }
 
-void spawn_thread(int new_socket, void *on_create_function) {
+void spawn_thread(int* new_socket, void *on_create_function) {
     pid_t pID;
     pthread_t tid;
     NUM_THREADS++;
-    pthread_create(&tid, NULL, on_create_function, &new_socket);
-    printf("\nA client has connected (socket %d), new thread created. Total threads: %d.\n", new_socket, NUM_THREADS);
+    pthread_create(&tid, NULL, on_create_function, new_socket);
+    printf("\nA client has connected (socket %d), new thread created. Total threads: %d.\n", *new_socket, NUM_THREADS);
 }
 
 // Sets appropriate error message if status indicates error
