@@ -109,7 +109,7 @@ int process_request(char *buffer, Connection* client, int bytes_received) {
 
     int bytes_sent = 0;
             
-    // Assuming all commands contain less than two words (TODO: otherwise, error??)
+    // Assuming all commands contain less than two words
     char parsed[MAX_NUM_ARGS][MAX_COMMAND_LENGTH];
     
     printf("\n------------------------------------------\n");
