@@ -10,7 +10,7 @@
 #include <dirent.h>
 #include <pthread.h>
 
-extern int NUM_THREADS; // want to get this out of here
+extern int NUM_THREADS;
 extern int MAIN_PORT;
 extern int BACKLOG;
 extern int CURRENT_CONNECTION_PORT;
@@ -21,5 +21,6 @@ extern int MAX_NUM_ARGS;
 extern int MAX_COMMAND_LENGTH;
 extern int MAX_MSG_LENGTH;
 
-void set_root(const char* path);
+void spawn_thread(int new_socket, void *on_create_function);
 void check_status(int status, const char *error);
+void set_root(const char* path);

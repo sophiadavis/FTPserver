@@ -1,3 +1,7 @@
+/* socketConnection.c
+*  Functions handling creation and binding of sockets.
+*/
+
 #include "socketConnection.h"
 #include "response.h"
 
@@ -73,17 +77,6 @@ void set_reuse_option_on_port(int listening_socket) {
     check_status(sockopt_status, "setsockopt");
 }
 
-void infinite_listen_on_socket(int listening_socket, int backlog) {
-    int new_socket;
-    while (1) {
-        int listen_status = listen(listening_socket, backlog);
-        check_status(listen_status, "listen");
-    
-        new_socket = open_socket_for_incoming_connection(listening_socket);
-        spawn_thread(new_socket, &process_control_connection);
-    }
-}
-
 int open_socket_for_incoming_connection(int listening_socket) {
     int new_socket;
     
@@ -95,12 +88,4 @@ int open_socket_for_incoming_connection(int listening_socket) {
     check_status(new_socket, "accept");
 
     return new_socket;
-}
-
-void spawn_thread(int new_socket, void *on_create_function) {
-    pid_t pID;
-    pthread_t tid;
-    NUM_THREADS++;
-    pthread_create(&tid, NULL, on_create_function, &new_socket);
-    printf("\nA client has connected (socket %d), new thread created. Total threads: %d.\n", new_socket, NUM_THREADS);
 }

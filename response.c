@@ -1,3 +1,9 @@
+/* response.c
+*  Functions handling interpretation of client commands and formulation of appropriate
+*  response.
+*  Information about each connection is contained in a Connection struct (defined in response.h). 
+*/
+
 #include "response.h"
 #include "socketConnection.h"
 
@@ -65,8 +71,10 @@ void *process_control_connection(void *sock) {
     client.accept_data_socket = 0;
     
     // Cast void* as int*
+    printf("Client's socket fd is %d\n", *(int *) sock);
     int *new_socket_ptr = (int *) sock;
     client.main_socket = *new_socket_ptr;
+    printf("Client's socket fd is %d\n", client.main_socket);
         
     // Prepare to send and receive data
     char *buffer = malloc(MAX_MSG_LENGTH);
@@ -148,7 +156,7 @@ int process_request(char *buffer, Connection* client, int bytes_received) {
                 break;
         
             case TYPE:
-                bytes_sent += send_formatted_response_to_client(client, 200, "Using ASCII mode for directory listings and binary mode to transfer files.");
+                bytes_sent += send_formatted_response_to_client(client, 200, "Using binary mode for data transfer.");
                 break;
             
             case SYST:

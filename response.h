@@ -5,7 +5,7 @@ typedef struct connection {
     int data_port;
     
     int main_socket;
-    int listening_data_socket; // what are these???
+    int listening_data_socket;
     int accept_data_socket;
     
     int total_bytes_sent;
