@@ -32,6 +32,8 @@ I might return to this later, but for now I think I've had enough with string ma
 To run:  
 ```make```  
 ```mv server /var/folders/r6/mzb0s9jd1639123lkcsv4mf00000gn/T/server``` (create pretend 'remote' file system)  
-```./ftp```
+```./ftp```  
 
-And connect with your FTP client (```ftp localhost 5000``` on my machine.) Login with USER anonymous.
+And connect with your FTP client (```ftp localhost 5000``` on my machine.)   
+
+Login with USER anonymous.
