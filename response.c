@@ -235,6 +235,7 @@ int send_data_to_client(Connection* client, unsigned char* data, int data_size) 
 
     // Data has been sent, now close connection
     close(client->accept_data_socket);
+    close(client->listening_data_socket);
     client->accept_data_socket = 0;
     client->listening_data_socket = 0;
 

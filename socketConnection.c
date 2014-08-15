@@ -13,8 +13,9 @@ int open_and_bind_socket_on_port(int port) {
     int listening_socket = create_socket_with_port_and_address(port, address);
     
     set_reuse_option_on_port(listening_socket);
-    
+        
     listening_socket = bind_with_error_checking(listening_socket, address_in);
+    printf("Listening socket: %d\n", listening_socket);
     
     return listening_socket;
 }

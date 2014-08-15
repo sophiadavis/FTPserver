@@ -147,6 +147,7 @@ int process_pasv_command(Connection* client) {
     free(response);
 
     client->accept_data_socket = open_socket_for_incoming_connection(client->listening_data_socket);
+    printf("Am I blocking???\n");
     return bytes_sent;
 }
 
@@ -170,6 +171,7 @@ int process_nlst_command(Connection* client) {
     }
     else {
         bytes_sent += send_formatted_response_to_client(client, 550, "NLST error.");
+        printf("Data socket is %d\n", client->accept_data_socket);
     }
     return bytes_sent;
 }
