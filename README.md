@@ -30,10 +30,10 @@ Unfortunately, threads do not support different working directories. I started c
 I might return to this later, but for now I think I've had enough with string manipulation in C, and I won't be able to parse paths as elegantly as I would like.
 
 To run:  
-```make```  
-```mv server /var/folders/r6/mzb0s9jd1639123lkcsv4mf00000gn/T/server``` (create pretend 'remote' file system)  
-```./ftp```  
+`make`  
+`mv server /var/folders/r6/mzb0s9jd1639123lkcsv4mf00000gn/T/server` (create pretend 'remote' file system)  
+`./ftp`  
 
-And connect with your FTP client (```ftp localhost 5000``` on my machine.)   
+And connect with your FTP client (it's `ftp localhost 5000` on my machine.)   
 
-Login with USER anonymous.
+Login with the username `anonymous`.
