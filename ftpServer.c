@@ -1,6 +1,6 @@
 /* ftpServer.c
 *  Coordinates high-level creation of sockets, listening for incoming connections,
-*  and spawning new threads to deal with each client.
+*  formulation of FTP responses, and spawning new threads to deal with each client.
 */
 
 #include "ftpServer.h"
@@ -127,7 +127,6 @@ int process_cwd_command(Connection* client, const char* dir) {
     int chdir_root_status = chdir(ROOT);
     
     if ((chdir_thread_status == 0) && (chdir_request_status == 0) && (chdir_root_status == 0)) {
-        // reset thread wd
         bytes_sent += send_formatted_response_to_client(client, 250, "CWD successful.");
     }
     else {
@@ -193,7 +192,10 @@ int process_retr_command(Connection* client, const char* file) {
     int bytes_sent = 0;
 
     FILE *fp;
-    fp = fopen(file, "rb");
+    char *file_path = malloc(MAX_MSG_LENGTH); 
+    snprintf(file_path, MAX_MSG_LENGTH, "%s/%s", client->thread_wd, file);
+    printf("Here is the file path: %s\n", file_path);
+    fp = fopen(file_path, "rb");
     if ((fp != NULL) && client->accept_data_socket > 0) {
               
         unsigned long fileLength = getFileLength(fp);
@@ -213,6 +215,7 @@ int process_retr_command(Connection* client, const char* file) {
     else {
         bytes_sent += send_formatted_response_to_client(client, 550, "RETR error.");
     }
+    free(file_path);
     return bytes_sent;
 }
 
