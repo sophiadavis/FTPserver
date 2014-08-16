@@ -12,6 +12,7 @@ int BACKLOG = 10;
 int MAIN_PORT = 5000;
 int CURRENT_CONNECTION_PORT = 5000;
 const char *ROOT = "/var/folders/r6/mzb0s9jd1639123lkcsv4mf00000gn/T/server";
+pthread_mutex_t ROOT_LOCK;
 
 // Parameters for sending/receiving with client
 int MAX_NUM_ARGS = 2;
@@ -21,6 +22,8 @@ int MAX_MSG_LENGTH = 1024 * sizeof(char);
 int main(int argc, char *argv[]){
 
     set_root(ROOT);
+    int lock_status = pthread_mutex_init(&ROOT_LOCK, NULL);
+    check_status(lock_status, "lock");
     
     int listening_socket = open_and_bind_socket_on_port(MAIN_PORT);
     
@@ -35,6 +38,7 @@ int main(int argc, char *argv[]){
     }
 
     close(listening_socket);
+    pthread_mutex_destroy(&ROOT_LOCK);
     return 0;
 }
 
@@ -87,21 +91,25 @@ int sign_in_client(const char *username) {
     }
 }
 
-int process_pwd_command(Connection* client) {
-    int bytes_sent = 0;
-    
-    char *response = malloc(MAX_MSG_LENGTH); 
-    char *cwd = malloc(MAX_MSG_LENGTH);
-    if (getcwd(cwd, MAX_MSG_LENGTH) != NULL) {
-        snprintf(response, MAX_MSG_LENGTH, "\"%s\"", cwd);
-    }
-    else {
+void set_thread_wd(Connection* client) {
+    char *cwd;
+    client->thread_wd = getcwd(cwd, MAX_MSG_LENGTH);
+    if (client->thread_wd == NULL) {
         perror("getcwd() error");
         exit(1);
     }
+    printf("(set) here is working directory: %s\n", client->thread_wd);
+}
 
+int process_pwd_command(Connection* client) {
+    int bytes_sent = 0;
+    printf("(pwd) ABOUT TO SEGFAULT: %s\n", client->thread_wd);
+    char *response = malloc(MAX_MSG_LENGTH); 
+    snprintf(response, MAX_MSG_LENGTH, "\"%s\"", client->thread_wd);
+    printf("(pwd) here is working directory: %s\n", client->thread_wd);
+    
     bytes_sent += send_formatted_response_to_client(client, 257, response);
-    free(cwd);
+    
     free(response);
     return bytes_sent;
 }
@@ -109,18 +117,32 @@ int process_pwd_command(Connection* client) {
 int process_cwd_command(Connection* client, const char* dir) {
     int bytes_sent = 0;
     
-    ///////////////////////////////////////////
-    // THREADS SHARE WORKING DIRECTORY, DAMMIT.
-    ///////////////////////////////////////////
+    pthread_mutex_lock(&ROOT_LOCK);
+    
+    // Change from root to thread_wd
+    int chdir_thread_status = chdir(client->thread_wd);
+    printf("Changed dir to thread wd\n");
+    
+    // Change from thread_wd to requested directory
+    int chdir_request_status = chdir(dir);
+    printf("Changed dir to requested\n");
 
-    int chdir_status = chdir(dir);
-    if (chdir_status == 0) {
+    set_thread_wd(client);
+    
+    // And now reset to root directory:
+    int chdir_root_status = chdir(ROOT);
+    printf("Changed dir to root\n");
+    
+    if ((chdir_thread_status == 0) && (chdir_request_status == 0) && (chdir_root_status == 0)) {
+        // reset thread wd
         bytes_sent += send_formatted_response_to_client(client, 250, "CWD successful.");
     }
     else {
         perror("CWD");
         bytes_sent += send_formatted_response_to_client(client, 550, "CWD error.");
     }
+    
+    pthread_mutex_unlock(&ROOT_LOCK);
     return bytes_sent;
 }
 
@@ -158,11 +180,14 @@ int process_nlst_command(Connection* client) {
     int response_length = 0;
     DIR *d;
     struct dirent *dir;
-    d = opendir(".");
+    
+    printf("Segfault?? %s\n", client->thread_wd);
+    d = opendir((const char *) client->thread_wd);
     char dirInfo[MAX_MSG_LENGTH];
-
+    printf("Segfault??\n");
     if (d && client->accept_data_socket > 0) {
         while ((dir = readdir(d)) != NULL) {
+            printf("Segfault??\n");
             data_length = data_length + snprintf(dirInfo + data_length, MAX_MSG_LENGTH - data_length, "%s \r\n", dir->d_name);
         }
         closedir(d);
@@ -171,8 +196,8 @@ int process_nlst_command(Connection* client) {
     }
     else {
         bytes_sent += send_formatted_response_to_client(client, 550, "NLST error.");
-        printf("Data socket is %d\n", client->accept_data_socket);
     }
+    printf("Segfault??\n");
     return bytes_sent;
 }
 

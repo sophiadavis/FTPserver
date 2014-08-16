@@ -16,6 +16,7 @@ extern int MAIN_PORT;
 extern int BACKLOG;
 extern int CURRENT_CONNECTION_PORT;
 extern const char *ROOT;
+extern pthread_mutex_t ROOT_LOCK;
 
 // Parameters for sending/receiving with client
 extern int MAX_NUM_ARGS;
@@ -25,6 +26,8 @@ extern int MAX_MSG_LENGTH;
 #ifndef CONNECTION
 #define CONNECTION
     typedef struct connection {
+        char* thread_wd;
+        
         int sign_in_status;
         int data_port;
     
@@ -43,6 +46,7 @@ void set_root(const char* path);
 int process_user_command(Connection* client, const char* username);
 int sign_in_client(const char *username);
 
+void set_thread_wd(Connection* client);
 int process_pwd_command(Connection* client);
 int process_cwd_command(Connection* client, const char* dir);
 int process_pasv_command(Connection* client);

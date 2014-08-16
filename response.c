@@ -65,6 +65,8 @@ void *process_control_connection(void *sock) {
     Connection client;
     
     // Bookkeeping for this thread
+//     client.thread_wd = malloc(MAX_MSG_LENGTH);
+    set_thread_wd(&client);
     client.sign_in_status = 0;
     client.data_port = CURRENT_CONNECTION_PORT;
     client.listening_data_socket = 0;
@@ -102,6 +104,7 @@ void *process_control_connection(void *sock) {
     
     free(buffer);
     free(new_socket_ptr);
+//     free(client.thread_wd);
     pthread_exit((void *) &(client.total_bytes_sent));
 } /*    END PROCESS CONTROL CONNECTION    */
 
