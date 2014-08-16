@@ -92,9 +92,8 @@ int sign_in_client(const char *username) {
 }
 
 void set_thread_wd(Connection* client) {
-    char *cwd;
-    client->thread_wd = getcwd(cwd, MAX_MSG_LENGTH);
-    if (client->thread_wd == NULL) {
+//     char *cwd;
+    if (getcwd(client->thread_wd, MAX_MSG_LENGTH) == NULL) {
         perror("getcwd() error");
         exit(1);
     }
