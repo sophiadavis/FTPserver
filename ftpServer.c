@@ -97,15 +97,12 @@ void set_thread_wd(Connection* client) {
         perror("getcwd() error");
         exit(1);
     }
-    printf("(set) here is working directory: %s\n", client->thread_wd);
 }
 
 int process_pwd_command(Connection* client) {
     int bytes_sent = 0;
-    printf("(pwd) ABOUT TO SEGFAULT: %s\n", client->thread_wd);
     char *response = malloc(MAX_MSG_LENGTH); 
     snprintf(response, MAX_MSG_LENGTH, "\"%s\"", client->thread_wd);
-    printf("(pwd) here is working directory: %s\n", client->thread_wd);
     
     bytes_sent += send_formatted_response_to_client(client, 257, response);
     
@@ -120,17 +117,14 @@ int process_cwd_command(Connection* client, const char* dir) {
     
     // Change from root to thread_wd
     int chdir_thread_status = chdir(client->thread_wd);
-    printf("Changed dir to thread wd\n");
     
     // Change from thread_wd to requested directory
     int chdir_request_status = chdir(dir);
-    printf("Changed dir to requested\n");
 
     set_thread_wd(client);
     
     // And now reset to root directory:
     int chdir_root_status = chdir(ROOT);
-    printf("Changed dir to root\n");
     
     if ((chdir_thread_status == 0) && (chdir_request_status == 0) && (chdir_root_status == 0)) {
         // reset thread wd
@@ -168,7 +162,6 @@ int process_pasv_command(Connection* client) {
     free(response);
 
     client->accept_data_socket = open_socket_for_incoming_connection(client->listening_data_socket);
-    printf("Am I blocking???\n");
     return bytes_sent;
 }
 
@@ -180,13 +173,10 @@ int process_nlst_command(Connection* client) {
     DIR *d;
     struct dirent *dir;
     
-    printf("Segfault?? %s\n", client->thread_wd);
     d = opendir((const char *) client->thread_wd);
     char dirInfo[MAX_MSG_LENGTH];
-    printf("Segfault??\n");
     if (d && client->accept_data_socket > 0) {
         while ((dir = readdir(d)) != NULL) {
-            printf("Segfault??\n");
             data_length = data_length + snprintf(dirInfo + data_length, MAX_MSG_LENGTH - data_length, "%s \r\n", dir->d_name);
         }
         closedir(d);
@@ -196,7 +186,6 @@ int process_nlst_command(Connection* client) {
     else {
         bytes_sent += send_formatted_response_to_client(client, 550, "NLST error.");
     }
-    printf("Segfault??\n");
     return bytes_sent;
 }
 
