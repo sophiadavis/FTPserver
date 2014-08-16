@@ -26,8 +26,7 @@ The server socket is set to listen on localhost, port 5000, and only handles IPv
 
 A new thread is opened for each client. One socket is used for exchange of FTP codes and messages, and another set of sockets is opened on a separate port for each data transaction. All data is transfered in binary mode. The server assumes all commands consist of one or two words. When the client issues an unrecognized command, the server responds with '502 Command not implemented.'
 
-Unfortunately, threads do not support different working directories. I started creating 'virtual' working directories by relating each thread with a string representing the path to the thread's wd, and then issuing all other NLST and RETR commands relative to this path. My (messy) progress with basic concatenation of paths is in thread_wd_initial.c
-I might return to this later, but for now I think I've had enough with string manipulation in C, and I won't be able to parse paths as elegantly as I would like.
+Unfortunately, different threads cannot have different working directories. I worked around this by assigning a 'virtual' working directory to each thread/client, in the form of a string representing the path to where the client on this thread "thinks" it is. This makes changing directory a bit tricky. Instead of re-implementing path-parsing, when a CD command is issued, I use a mutex to lock access to the process working directory. While the resource is locked, I change the process directory from the initial root directory to where the thread 'thinks' it is, and from there to the requested directory. The absolute path of the requested directory is saved as the client's current working directory. Finally, the process directory is changed back to the initial root directory, and the lock is released. All other NLST and RETR commands are issued relative to the virtual path. It's definitely a hack, but it seems to work.
 
 To run:  
 `make`  
