@@ -241,6 +241,7 @@ int send_data_to_client(Connection* client, unsigned char* data, int data_size) 
     close(client->listening_data_socket);
     client->accept_data_socket = 0;
     client->listening_data_socket = 0;
+    CURRENT_CONNECTION_PORT--;
 
     bytes_sent += send_formatted_response_to_client(client, 226, "Transfer complete.");
     

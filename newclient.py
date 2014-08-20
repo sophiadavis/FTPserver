@@ -3,7 +3,7 @@ import socket
 import sys
 
 HOST = 'localhost'    # The remote host
-PORT = 10002              # The same port as used by the server
+PORT = 65500              # The same port as used by the server
 
 def open_socket(port):
     for res in socket.getaddrinfo(HOST, port, socket.AF_UNSPEC, socket.SOCK_STREAM):
@@ -42,7 +42,8 @@ def main():
         data = s.recv(1024)
         print 'Received', repr(data)
         
-        port = 10002 + i + 1
+        port = PORT + i + 1
+        print port
         newsock = open_socket(port)
         s.sendall("NLST")
         while 1:

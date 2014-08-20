@@ -148,11 +148,9 @@ int process_pasv_command(Connection* client) {
     // Client expects (a1,a2,a3,a4,p1,p2), where port = p1*256 + p2
     int p1 = client->data_port / 256;
     int p2 = client->data_port % 256;
-    printf("opened new port\n");
 
     int listen_status = listen(client->listening_data_socket, BACKLOG);
     check_status(listen_status, "listen");
-    printf("listening\n");
 
     char *response = malloc(MAX_MSG_LENGTH);
     snprintf(response, MAX_MSG_LENGTH, "%s =127,0,0,1,%i,%i", "Entering Passive Mode", p1, p2);
